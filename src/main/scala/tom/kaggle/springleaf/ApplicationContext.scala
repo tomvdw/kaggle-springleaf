@@ -15,7 +15,6 @@ class ApplicationContext {
   sc.hadoopConfiguration.setInt("parquet.block.size", ONE_GB)
 
   val sqlContext = new SQLContext(sc)
-  import sqlContext.implicits._
-  val dataImporter = new DataImporter(sqlContext)
+  val dataImporter = new DataImporter(sc, sqlContext)
 
 }

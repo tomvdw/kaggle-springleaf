@@ -1,13 +1,16 @@
 package tom.kaggle.springleaf
 
+import org.apache.spark.SparkContext
 import org.apache.spark.sql.SQLContext
 
-class DataImporter(sqlContext: SQLContext) {
+class DataImporter(sc: SparkContext, sqlContext: SQLContext) {
+  import sqlContext.implicits._
 
   val dataFolderPath = "/Users/tomvanderweide/kaggle/springleaf/"
-  val csvTrainPath = dataFolderPath + "train.csv"
+  val csvTrainPath = dataFolderPath + "trainMissing.csv"
   val dfTrainPath = dataFolderPath + "dfTrain.parquet"
   val jsonTrainPath = dataFolderPath + "jsonTrain.json"
+  val rddTrainPath = dataFolderPath + "rddTrain.rdd"
 
   def readJson = {
     try {
@@ -35,5 +38,17 @@ class DataImporter(sqlContext: SQLContext) {
     .option("header", "true")
     .option("inferSchema", "true")
     .load(csvTrainPath)
+
+  def readRdd = {
+    try {
+      val rdd = sc.objectFile(rddTrainPath, 16)
+      rdd
+    } catch {
+      case e: Throwable =>
+        val df = readCsv
+        df.rdd.saveAsObjectFile(rddTrainPath)
+        df.rdd
+    }
+  }
 
 }
