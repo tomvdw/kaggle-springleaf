@@ -1,6 +1,5 @@
-package tom.kaggle.springleaf
+package tom.kaggle.springleaf.analysis
 
-import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.types.StructField
 
 trait ICachedAnalysis {

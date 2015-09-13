@@ -1,12 +1,14 @@
-package tom.kaggle.springleaf
+package tom.kaggle.springleaf.analysis
 
 import java.io.PrintWriter
 import java.io.BufferedWriter
 import java.io.FileWriter
-import org.apache.spark.sql.types.StructField
-import org.apache.spark.sql.types.StructType
 
-case class AnalysisReaderWriter(ac: ApplicationContext, analyzer: CategoricalColumnAnalyzer) extends ICachedAnalysis {
+import org.apache.spark.sql.types.StructField
+
+import tom.kaggle.springleaf.ApplicationContext
+
+case class FileCacheAnalysis(ac: ApplicationContext, analyzer: CategoricalColumnAnalyzer) extends ICachedAnalysis {
   private var writer: Option[PrintWriter] = None
 
   def readColumnValueCounts: Map[String, Map[String, Long]] = {

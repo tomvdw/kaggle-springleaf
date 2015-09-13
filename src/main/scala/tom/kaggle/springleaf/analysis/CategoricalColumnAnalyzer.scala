@@ -1,4 +1,4 @@
-package tom.kaggle.springleaf
+package tom.kaggle.springleaf.analysis
 
 import scala.util.matching.Regex
 import org.apache.spark.sql.types.DataType
@@ -6,9 +6,9 @@ import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.DateType
 import org.apache.spark.sql.types.BooleanType
-import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StringType
+import tom.kaggle.springleaf.ApplicationContext
 
 case class CategoricalColumnAnalyzer(
     ac: ApplicationContext) {

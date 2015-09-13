@@ -4,6 +4,9 @@ import org.apache.spark.sql.SQLContext
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import com.redis.RedisClient
+import tom.kaggle.springleaf.analysis.RedisCacheAnalysis
+import tom.kaggle.springleaf.analysis.CategoricalColumnAnalyzer
+import tom.kaggle.springleaf.analysis.ICachedAnalysis
 
 class ApplicationContext {
   val conf = new SparkConf()

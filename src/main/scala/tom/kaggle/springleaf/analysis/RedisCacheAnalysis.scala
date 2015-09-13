@@ -1,8 +1,12 @@
-package tom.kaggle.springleaf
+package tom.kaggle.springleaf.analysis
 
-import com.redis.serialization._
-import Parse.Implicits._
 import org.apache.spark.sql.types.StructField
+
+import com.redis.serialization.Parse.Implicits.parseLong
+import com.redis.serialization.Parse.Implicits.parseString
+
+import tom.kaggle.springleaf.ApplicationContext
+import tom.kaggle.springleaf.KeyHelper
 
 case class RedisCacheAnalysis(ac: ApplicationContext, analyzer: CategoricalColumnAnalyzer) extends ICachedAnalysis {
 
