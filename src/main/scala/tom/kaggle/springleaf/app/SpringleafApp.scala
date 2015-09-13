@@ -1,4 +1,4 @@
-package tom.kaggle.springleaf
+package tom.kaggle.springleaf.app
 
 import org.apache.spark.mllib.feature.PCA
 import org.apache.spark.mllib.linalg.Vector
@@ -15,6 +15,10 @@ import org.apache.spark.sql.types.StringType
 import org.apache.spark.ml.feature.StringIndexer
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.rdd.RDD
+import tom.kaggle.springleaf.SchemaInspector
+import tom.kaggle.springleaf.DataPreProcessor
+import tom.kaggle.springleaf.ApplicationContext
+import tom.kaggle.springleaf.DataPreProcessor
 
 object SpringleafApp {
 
@@ -22,12 +26,9 @@ object SpringleafApp {
     val ac = new ApplicationContext
 
     val startTime = System.currentTimeMillis()
-    val df = ac.dataImporter.readSample
-    val schemaInspector = SchemaInspector(df)
-    df.registerTempTable("xxx")
     val endReadTime = System.currentTimeMillis()
 
-    val castDf = df.selectExpr("cast(VAR_0006 AS DECIMAL) as CVAR_0006")
+    val castDf = ac.df.selectExpr("cast(VAR_0006 AS DECIMAL) as CVAR_0006")
     castDf.printSchema()
     castDf.registerTempTable("castxxx")
     ac.sqlContext.sql("SELECT count(1) as isnull from castxxx where CVAR_0006 is null").show(100)
@@ -72,7 +73,7 @@ object SpringleafApp {
 
     //val subDf = df.select(getNumericalColumns(df):_*)
 
-    val dataPreProcessor = DataPreProcessor(df)
+    val dataPreProcessor = DataPreProcessor(ac)
 
     val (indDf, indexedNames) = dataPreProcessor.transformCategoricalToIndexed
     

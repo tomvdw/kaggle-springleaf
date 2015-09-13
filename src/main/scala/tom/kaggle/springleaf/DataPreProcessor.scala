@@ -15,10 +15,9 @@ import org.apache.spark.mllib.feature.PCA
 import java.io.PrintWriter
 import org.apache.spark.ml.feature.StringIndexerModel
 
-case class DataPreProcessor(df: DataFrame) {
-  val schemaInspector = SchemaInspector(df)
-  val categoricalTransformer = CategoricToIndexTransformer(df)
-  val labelIndex = df.schema.fieldIndex("target")
+case class DataPreProcessor(ac: ApplicationContext) {
+  val categoricalTransformer = CategoricToIndexTransformer(ac)
+  val labelIndex = ac.df.schema.fieldIndex("target")
 
   def getLabel(row: Row): Double = row.getInt(labelIndex).toDouble
 
@@ -50,7 +49,7 @@ case class DataPreProcessor(df: DataFrame) {
     */
 
     val sparseValues = for {
-      (column, index) <- schemaInspector.getNumericalVariables.zipWithIndex
+      (column, index) <- ac.schemaInspector.getNumericalVariables.zipWithIndex
       extractedValue <- extractNumericalValue(row, column)
       value <- Some(extractedValue)
     } yield (index, value)
@@ -65,7 +64,7 @@ case class DataPreProcessor(df: DataFrame) {
   }
 
   def getNumericalFeatures: RDD[LabeledPoint] = {
-    df.map { row => LabeledPoint(getLabel(row), getNumericalValues(row)) }
+    ac.df.map { row => LabeledPoint(getLabel(row), getNumericalValues(row)) }
   }
 
   def getImputedNumericalFeatures: RDD[LabeledPoint] = {

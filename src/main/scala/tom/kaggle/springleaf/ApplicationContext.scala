@@ -18,11 +18,25 @@ class ApplicationContext {
   val sqlContext = new SQLContext(sc)
   val dataImporter = new DataImporter(sc, sqlContext)
 
-  val redis = new RedisClient("localhost", 6379)
+  val redisHost = "localhost"
+  val redisPort = 6379
+  val redis = new RedisClient(redisHost, redisPort)
+
+  lazy val df = {
+    val result = dataImporter.readSample
+    result.registerTempTable(ApplicationContext.tableName)
+    result
+  }
+
+  val schemaInspector = SchemaInspector(this)
+
+  val analyzer = CategoricalColumnAnalyzer(this)
+  val cachedAnalysis: ICachedAnalysis = RedisCacheAnalysis(this, analyzer)
 
 }
 
 object ApplicationContext {
   val dataFolderPath = "/Users/tomvanderweide/kaggle/springleaf/"
   val fraction = 0.01
+  val tableName = "xxx"
 }

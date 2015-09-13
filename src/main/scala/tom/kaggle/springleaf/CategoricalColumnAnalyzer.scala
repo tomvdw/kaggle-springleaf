@@ -8,44 +8,46 @@ import org.apache.spark.sql.types.DateType
 import org.apache.spark.sql.types.BooleanType
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StringType
 
 case class CategoricalColumnAnalyzer(
-    ac: ApplicationContext,
-    df: DataFrame) {
+    ac: ApplicationContext) {
 
   val integerRegex = "^-?\\d+$".r
   val doubleRegex = "^-?\\d+\\.\\d+$".r
   val dateRegex = "^\\d{2}[A-Z]{3}\\d{2}".r
   val booleanRegex = "^(false|true)$".r
 
-  def predictType(valuesPerColumn: Map[String, Array[String]]): Map[String, Option[DataType]] = {
+  def predictType(valuesPerColumn: Map[String, Map[String, Long]]): Map[String, DataType] = {
     valuesPerColumn.map {
       case (column, values) => {
         val counter = countMatches(values)_
-
         val nrOfIntegers = counter(integerRegex)
         val nrOfDoubles = counter(doubleRegex)
 
-        val minimum = math.max(1, values.length - 1 / 2)
+        val minimum = math.max(1, values.size / 2)
         val predictedType =
-          if (nrOfIntegers >= minimum) Some(IntegerType)
-          else if (nrOfDoubles + nrOfIntegers >= minimum) Some(DoubleType)
-          else if (counter(dateRegex) >= minimum) Some(DateType)
-          else if (counter(booleanRegex) >= minimum) Some(BooleanType)
-          else None
+          if (nrOfIntegers >= minimum) IntegerType
+          else if (nrOfDoubles + nrOfIntegers >= minimum) DoubleType
+          else if (counter(dateRegex) >= minimum) DateType
+          else if (counter(booleanRegex) >= minimum) BooleanType
+          else {
+            println("Defaulted to StringTyoe for %s! Values: %s".format(column, values))
+            StringType
+          }
+
         (column -> predictedType)
       }
     }
   }
-  
+
   def isRemovable(values: Array[(String, Long)]): Boolean = {
     val total = values.map(_._2).sum
     val minimum = math.max(1, total / 100)
     if (values.size == 1) true
     else if (values.size == 2) {
       values(0)._2 < minimum || values(1)._2 < minimum
-    }
-    else false
+    } else false
   }
 
   def getValueCounts(table: String, column: StructField): Array[(String, Long)] = {
@@ -55,12 +57,13 @@ case class CategoricalColumnAnalyzer(
     results.map { row => (row.getAs[String]("v") -> row.getAs[Long]("c")) }.collect()
   }
 
-  private def countMatches(values: Array[String])(regex: Regex): Int = {
-    values.map(value => {
-      regex.findFirstIn(value) match {
-        case Some(x) => 1
-        case None    => 0
-      }
-    }).sum
+  private def countMatches(values: Map[String, Long])(regex: Regex): Int = {
+    values.map {
+      case (value, occurrences) =>
+        regex.findFirstIn(value) match {
+          case Some(x) => 1
+          case None    => 0
+        }
+    }.sum
   }
 }
