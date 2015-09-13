@@ -1,16 +1,19 @@
 package tom.kaggle.springleaf
 
 import org.apache.spark.SparkContext
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.SQLContext
 
 class DataImporter(sc: SparkContext, sqlContext: SQLContext) {
   import sqlContext.implicits._
 
-  val dataFolderPath = "/Users/tomvanderweide/kaggle/springleaf/"
-  val csvTrainPath = dataFolderPath + "trainMissing.csv"
-  val dfTrainPath = dataFolderPath + "dfTrain.parquet"
-  val jsonTrainPath = dataFolderPath + "jsonTrain.json"
-  val rddTrainPath = dataFolderPath + "rddTrain.rdd"
+  val csvTrainPath = ApplicationContext.dataFolderPath + "trainMissing.csv"
+  val sampledCsvTrainPath = ApplicationContext.dataFolderPath + "trainMissing.sampled"
+  val dfTrainPath = ApplicationContext.dataFolderPath + "train.parquet"
+  val jsonTrainPath = ApplicationContext.dataFolderPath + "train.json"
+  val rddTrainPath = ApplicationContext.dataFolderPath + "train.rdd"
+
+  val databricksCsvPackage = "com.databricks.spark.csv"
 
   def readJson = {
     try {
@@ -34,10 +37,13 @@ class DataImporter(sc: SparkContext, sqlContext: SQLContext) {
     }
   }
 
-  def readCsv = sqlContext.read.format("com.databricks.spark.csv")
-    .option("header", "true")
-    .option("inferSchema", "true")
-    .load(csvTrainPath)
+  def readCsv: DataFrame = readCsv(csvTrainPath)
+
+  def readCsv(filePath: String): DataFrame =
+    sqlContext.read.format(databricksCsvPackage)
+      .option("header", "true")
+      .option("inferSchema", "true")
+      .load(filePath)
 
   def readRdd = {
     try {
@@ -50,5 +56,24 @@ class DataImporter(sc: SparkContext, sqlContext: SQLContext) {
         df.rdd
     }
   }
+
+  def readSample: DataFrame = {
+    val path = sampledCsvTrainPath + "." + ApplicationContext.fraction
+    try {
+      readCsv(path)
+    } catch {
+      case e: Throwable =>
+        val df = readCsv
+        val sampledDf = df.sample(false, ApplicationContext.fraction)
+        sampledDf.write
+          .format(databricksCsvPackage)
+          .option("header", "true")
+          .save(path)
+        sampledDf
+    }
+  }
+}
+
+object DataImporter {
 
 }

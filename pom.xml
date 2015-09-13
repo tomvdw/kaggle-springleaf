@@ -11,7 +11,7 @@
 	<properties>
 		<scala.version>2.11</scala.version>
 		<scala.full.version>2.11.7</scala.full.version>
-		<spark.version>1.4.1</spark.version>
+		<spark.version>1.5.0</spark.version>
 	</properties>
 
 	<repositories>
@@ -48,8 +48,17 @@
 
 		<dependency>
 			<groupId>com.databricks</groupId>
-			<artifactId>spark-csv_2.11</artifactId>
+			<artifactId>spark-csv_${scala.version}</artifactId>
 			<version>1.2.0</version>
+		</dependency>
+
+		<dependency>
+			    
+			<groupId>org.redis</groupId>
+			    
+			<artifactId>scala-redis_2.11</artifactId>
+			    
+			<version>0.0.21</version>
 		</dependency>
 
 		<!-- <dependency> <groupId>tom</groupId> <artifactId>spark-utils</artifactId> 

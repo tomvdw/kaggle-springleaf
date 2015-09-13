@@ -1,41 +1,66 @@
 package tom.kaggle.springleaf
 
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
-import org.apache.spark.sql.SQLContext
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.types.DataType
-import org.apache.spark.sql.types.StringType
-import org.apache.spark.sql.Column
+import org.apache.spark.mllib.feature.PCA
+import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.mllib.feature.PCA
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.LongType
-import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.rdd.RDD
 
 object SpringleafApp {
 
   def main(args: Array[String]) {
     val ac = new ApplicationContext
 
-    def getAllVariables(df: DataFrame) = df.schema.fields.filter { x => x.name.startsWith("VAR") }
-    def getCategoricalVariables(df: DataFrame) = getAllVariables(df).filter { x => x.dataType == StringType }
-    def getNumericalVariables(df: DataFrame) = getAllVariables(df).filter { x => x.dataType != StringType }
-
-    def getCategoricalColumns(df: DataFrame): List[Column] = getCategoricalVariables(df).map { x => df.col(x.name) }.toList
-    def getNumericalColumns(df: DataFrame): List[Column] = getNumericalVariables(df).map { x => df.col(x.name) }.toList
-
-    def showAllFields(df: DataFrame) = df.schema.fields.foreach { x =>
-      println("Name = %s, data type = %s, nullable = %s".format(x.name, x.dataType, x.nullable))
-    }
-
     val startTime = System.currentTimeMillis()
-    val df = ac.dataImporter.readCsv
+    val df = ac.dataImporter.readSample
+    val schemaInspector = SchemaInspector(df)
     df.registerTempTable("xxx")
     val endReadTime = System.currentTimeMillis()
 
-    println(df.first())
+    val castDf = df.selectExpr("cast(VAR_0006 AS DECIMAL) as CVAR_0006")
+    castDf.printSchema()
+    castDf.registerTempTable("castxxx")
+    ac.sqlContext.sql("SELECT count(1) as isnull from castxxx where CVAR_0006 is null").show(100)
+    ac.sqlContext.sql("SELECT CVAR_0006, count(1) from castxxx group by CVAR_0006").show(100)
+
+    val nullDf = ac.sqlContext.sql("SELECT case when VAR_0006 = 'null' then NULL else VAR_0006 end as VAR_0006 from xxx")
+    nullDf.registerTempTable("nullxxx")
+    nullDf.printSchema()
+
+    ac.sqlContext.sql("SELECT count(1) as isnull from nullxxx where VAR_0006 is null").show(100)
+    ac.sqlContext.sql("SELECT count(1) as equalsnull from nullxxx where VAR_0006 = 'null'").show(100)
+    ac.sqlContext.sql("SELECT VAR_0006, count(1) from nullxxx group by VAR_0006").show(100)
+    ac.sqlContext.sql("SELECT avg(VAR_0006) from nullxxx").show()
+
+    //    ac.sqlContext.sql("SELECT COUNT(1) FROM xxx").show()
+    //    println("Number of rows: " + df.count())
+
+    /**
+     * Steps:
+     *
+     * For each numeric feature:
+     * - impute missing values
+     *   OR use StandardScaler and use 0.0 as mean :)
+     * For all numeric features:
+     * - run PCA
+     *
+     * For all categorical features:
+     * - do something with dates, e.g.:
+     *   - detect what columns contain dates
+     *   - parse dates
+     *   - create features for year, month, day, week day, week in year, hour of day, etc
+     * - encode booleans as 0 and 1?
+     */
 
     //val groupedData = df.groupBy("VAR_0001").count().collect()
     //df.select("VAR_0001").distinct.foreach { x => println(x) }
@@ -47,52 +72,21 @@ object SpringleafApp {
 
     //val subDf = df.select(getNumericalColumns(df):_*)
 
-    val numericalVariables = getNumericalVariables(df)
-    val labelIndex = df.schema.fieldIndex("target")
+    val dataPreProcessor = DataPreProcessor(df)
 
-    val lps = df.map { row =>
-      {
-        val doubles = for (column <- df.schema.fields) yield {
-          val index = row.fieldIndex(column.name)
-          if (!row.isNullAt(index)) {
-            if (column.dataType == IntegerType) row.getAs[Integer](index).toDouble
-            else if (column.dataType == LongType) row.getLong(index).toDouble
-            else if (column.dataType == DoubleType) row.getDouble(index)
-          }
-          0.0 // TODO: impute missing values before!
-        }
-        val label = row.getInt(labelIndex).toDouble
-        LabeledPoint(label, Vectors.dense(doubles))
-      }
-    }
+    val (indDf, indexedNames) = dataPreProcessor.transformCategoricalToIndexed
+    
+
+    indDf.printSchema()
+    indDf.registerTempTable("yyy")
+    ac.sqlContext.sql("SELECT ind_VAR_0001, COUNT(*) FROM yyy group by ind_VAR_0001").show()
+
+    //val catFeatures = df.map { row => LabeledPoint(row.getInt(labelIndex).toDouble, getNumericalValues(row)) }
 
     //    lps.take(1).foreach { x => println(x) }
 
-    val pca = new PCA(10).fit(lps.map(_.features))
-    val projected = lps.map(p => p.copy(features = pca.transform(p.features)))
-
+    val projected = dataPreProcessor.principalComponentAnalysis(10, dataPreProcessor.getNumericalFeatures)
     projected.take(1).foreach { x => println(x) }
-
-    //    getAllVariables(df).foreach { x => println(x) }
-    //    getCategoricalVariables(df).foreach { x => println(x) }
-    //    val resultDf = ac.sqlContext.sql("SELECT COUNT(*) FROM xxx WHERE VAR_0001 IS NULL")
-    //    resultDf.show()
-
-    /**
-     * Steps:
-     *
-     * For each numeric feature:
-     * - impute missing values
-     * For all numeric features:
-     * - run PCA
-     *
-     * For all categorical features:
-     * - do something with dates, e.g.:
-     *   - detect what columns contain dates
-     *   - parse dates
-     *   - create features for year, month, day, week day, week in year, hour of day, etc
-     * - encode booleans as 0 and 1?
-     */
 
     val endQueryTime = System.currentTimeMillis()
 
