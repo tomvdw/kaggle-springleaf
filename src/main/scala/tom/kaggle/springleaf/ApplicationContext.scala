@@ -42,4 +42,10 @@ object ApplicationContext {
   val dataFolderPath = "/Users/tomvanderweide/kaggle/springleaf/"
   val fraction = 0.01
   val tableName = "xxx"
+
+  val integerRegex = "^-?\\d+$".r
+  val doubleRegex = "^-?\\d+\\.\\d+$".r
+  val dateRegex = "^\\d{2}[A-Z]{3}\\d{2}".r
+  val booleanRegex = "^(false|true)$".r
+
 }

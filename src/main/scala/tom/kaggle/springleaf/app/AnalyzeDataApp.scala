@@ -1,10 +1,12 @@
 package tom.kaggle.springleaf.app
 
-import tom.kaggle.springleaf.ApplicationContext
 import org.apache.spark.sql.types.DataType
-import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.DateType
 import org.apache.spark.sql.types.DoubleType
-import tom.kaggle.springleaf.KeyHelper
+import org.apache.spark.sql.types.IntegerType
+import tom.kaggle.springleaf.ApplicationContext
+import tom.kaggle.springleaf.SqlDataTypeTransformer
+import org.apache.spark.sql.types.BooleanType
 
 case class AnalyzeDataApp(ac: ApplicationContext) {
 
@@ -15,25 +17,23 @@ case class AnalyzeDataApp(ac: ApplicationContext) {
   private def analyzeCategoricalVariables {
     val variables = ac.schemaInspector.getCategoricalVariables
     val columnValues = ac.cachedAnalysis.analyze(variables)
-//        val columnValues = ac.cachedAnalysis.readColumnValueCounts
     val predictedTypes = ac.analyzer.predictType(columnValues)
-    predictedTypes.foreach {
-      case (column, t) => println(column + ": " + t)
-    }
 
-    predictedTypes.map(pt => castColumn(pt._1, pt._2)).foreach(println)
+    val selectExpressions = predictedTypes.flatMap(pt => castColumn(pt._1, pt._2))
+    val df = ac.df
+    val query = "SELECT %s FROM %s".format(selectExpressions.mkString(",\n"), ApplicationContext.tableName)
+    ac.sqlContext.sql(query).show()
   }
-  
-  private def castColumn(column: String, dataType: DataType): String = {
-    val castedColumn = castedColumnName(column)
+
+  private def castColumn(column: String, dataType: DataType): List[String] = {
     dataType match {
-      case IntegerType => "cast(%s AS DECIMAL) as %s".format(column, castedColumn)
-      case DoubleType => "cast(%s AS DECIMAL) as %s".format(column, castedColumn)
-      case default => column
+      case IntegerType => SqlDataTypeTransformer.extractDecimal(column)
+      case DoubleType  => SqlDataTypeTransformer.extractDecimal(column)
+      case DateType    => SqlDataTypeTransformer.extractStandardDateFields(column)
+      case BooleanType => SqlDataTypeTransformer.extractBoolean(column)
+      case default     => List(column + " AS STR_" + column)
     }
   }
-
-  private def castedColumnName(column: String) = "C_" + column
 }
 
 object AnalyzeDataApp {

@@ -13,24 +13,19 @@ import tom.kaggle.springleaf.ApplicationContext
 case class CategoricalColumnAnalyzer(
     ac: ApplicationContext) {
 
-  val integerRegex = "^-?\\d+$".r
-  val doubleRegex = "^-?\\d+\\.\\d+$".r
-  val dateRegex = "^\\d{2}[A-Z]{3}\\d{2}".r
-  val booleanRegex = "^(false|true)$".r
-
   def predictType(valuesPerColumn: Map[String, Map[String, Long]]): Map[String, DataType] = {
     valuesPerColumn.map {
       case (column, values) => {
         val counter = countMatches(values)_
-        val nrOfIntegers = counter(integerRegex)
-        val nrOfDoubles = counter(doubleRegex)
+        val nrOfIntegers = counter(ApplicationContext.integerRegex)
+        val nrOfDoubles = counter(ApplicationContext.doubleRegex)
 
         val minimum = math.max(1, values.size / 2)
         val predictedType =
           if (nrOfIntegers >= minimum) IntegerType
           else if (nrOfDoubles + nrOfIntegers >= minimum) DoubleType
-          else if (counter(dateRegex) >= minimum) DateType
-          else if (counter(booleanRegex) >= minimum) BooleanType
+          else if (counter(ApplicationContext.dateRegex) >= minimum) DateType
+          else if (counter(ApplicationContext.booleanRegex) >= minimum) BooleanType
           else {
             println("Defaulted to StringTyoe for %s! Values: %s".format(column, values))
             StringType
