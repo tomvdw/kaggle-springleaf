@@ -19,21 +19,12 @@ case class AnalyzeDataApp(ac: ApplicationContext) {
     val columnValues = ac.cachedAnalysis.analyze(variables)
     val predictedTypes = ac.analyzer.predictType(columnValues)
 
-    val selectExpressions = predictedTypes.flatMap(pt => castColumn(pt._1, pt._2))
+    val selectExpressions = predictedTypes.flatMap(pt => SqlDataTypeTransformer.castColumn(pt._1, pt._2))
     val df = ac.df
     val query = "SELECT %s FROM %s".format(selectExpressions.mkString(",\n"), ApplicationContext.tableName)
     ac.sqlContext.sql(query).show()
   }
 
-  private def castColumn(column: String, dataType: DataType): List[String] = {
-    dataType match {
-      case IntegerType => SqlDataTypeTransformer.extractDecimal(column)
-      case DoubleType  => SqlDataTypeTransformer.extractDecimal(column)
-      case DateType    => SqlDataTypeTransformer.extractStandardDateFields(column)
-      case BooleanType => SqlDataTypeTransformer.extractBoolean(column)
-      case default     => List(column + " AS STR_" + column)
-    }
-  }
 }
 
 object AnalyzeDataApp {
