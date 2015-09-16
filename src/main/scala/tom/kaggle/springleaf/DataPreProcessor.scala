@@ -16,6 +16,7 @@ import java.io.PrintWriter
 import org.apache.spark.ml.feature.StringIndexerModel
 
 case class DataPreProcessor(ac: ApplicationContext) {
+  val schemaInspector = SchemaInspector(ac.df)
   val categoricalTransformer = CategoricToIndexTransformer(ac)
   val labelIndex = ac.df.schema.fieldIndex("target")
 
@@ -49,7 +50,7 @@ case class DataPreProcessor(ac: ApplicationContext) {
     */
 
     val sparseValues = for {
-      (column, index) <- ac.schemaInspector.getNumericalVariables.zipWithIndex
+      (column, index) <- schemaInspector.getNumericalVariables.zipWithIndex
       extractedValue <- extractNumericalValue(row, column)
       value <- Some(extractedValue)
     } yield (index, value)

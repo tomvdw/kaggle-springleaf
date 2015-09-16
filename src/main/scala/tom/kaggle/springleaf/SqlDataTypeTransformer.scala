@@ -6,11 +6,13 @@ import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.DateType
 import org.apache.spark.sql.types.BooleanType
 import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.LongType
 
 object SqlDataTypeTransformer {
   def castColumn(column: String, dataType: DataType): List[String] = {
     dataType match {
       case IntegerType => extractDecimal(column)
+      case LongType    => extractDecimal(column)
       case DoubleType  => extractDecimal(column)
       case DateType    => extractStandardDateFields(column)
       case BooleanType => extractBoolean(column)
@@ -18,17 +20,22 @@ object SqlDataTypeTransformer {
     }
   }
 
-  def extractDateField(column: String, index: Int, resultName: String): String = {
-    "REGEXP_EXTRACT(%s, '(\\d{2})([A-Z]{3})(\\d{2}):(\\d{2}):(\\d{2}):(\\d{2})', %d) as %s"
-      .format(column, index, resultName)
+  def extractDateField(column: String, index: Int): String = {
+    "REGEXP_EXTRACT(%s, '(\\d{2})([A-Z]{3})(\\d{2}):(\\d{2}):(\\d{2}):(\\d{2})', %d)"
+      .format(column, index)
   }
 
   def extractStandardDateFields(column: String): List[String] = {
-    List(extractDateField(column, 3, "DATE_" + column + "_YEAR"),
-      extractDateField(column, 2, "DATE_" + column + "_MONTH"),
-      extractDateField(column, 1, "DATE_" + column + "_DAY"),
-      extractDateField(column, 4, "DATE_" + column + "_HOUR"))
+    List(decimal(extractDateField(column, 3), "DEC_" + column + "_DATE_YEAR"),
+      string(extractDateField(column, 2), "STR_" + column + "_DATE_MONTH"),
+      decimal(extractDateField(column, 1), "DEC_" + column + "_DATE_DAY"),
+      decimal(extractDateField(column, 4), "DEC_" + column + "_DATE_HOUR"))
   }
+
+  def decimal(expression: String, resultName: String): String = "cast(%s AS DECIMAL) as %s".format(expression, resultName)
+
+  def string(expression: String, resultName: String): String =
+    "%s as %s".format(expression, resultName)
 
   def extractDecimal(column: String): List[String] = {
     List("CASE WHEN %s IS NULL OR %s = '' THEN NULL ELSE cast(%s AS DECIMAL) END as %s"

@@ -31,8 +31,6 @@ class ApplicationContext {
     result
   }
 
-  val schemaInspector = SchemaInspector(this)
-
   val analyzer = CategoricalColumnAnalyzer(this)
   val cachedAnalysis: ICachedAnalysis = RedisCacheAnalysis(this, analyzer)
 
@@ -42,6 +40,7 @@ object ApplicationContext {
   val dataFolderPath = "/Users/tomvanderweide/kaggle/springleaf/"
   val fraction = 0.01
   val tableName = "xxx"
+  val labelFieldName = "target"
 
   val integerRegex = "^-?\\d+$".r
   val doubleRegex = "^-?\\d+\\.\\d+$".r

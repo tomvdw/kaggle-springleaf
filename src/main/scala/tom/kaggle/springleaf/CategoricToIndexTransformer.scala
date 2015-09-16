@@ -22,7 +22,7 @@ case class CategoricToIndexTransformer(
 
     var tmpDf = ac.df
     var indexedNames: Map[String, Array[String]] = Map()
-    for (v <- ac.schemaInspector.getCategoricalVariables) {
+    for (v <- SchemaInspector(ac.df).getCategoricalVariables) {
       val indexedName = newColumnPrefix + v.name
       val indexer = new StringIndexer().setInputCol(v.name).setOutputCol(indexedName)
       val model = indexer.fit(ac.df)

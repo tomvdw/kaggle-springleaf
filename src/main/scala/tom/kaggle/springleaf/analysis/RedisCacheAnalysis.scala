@@ -36,9 +36,8 @@ case class RedisCacheAnalysis(ac: ApplicationContext, analyzer: CategoricalColum
     val cachedColumnValueCounts = readColumnValueCounts
 
     for (variable <- variables) {
-      if (!cachedColumnValueCounts.contains(variable.name)) {
+      if (!cachedColumnValueCounts.contains(variable.name))
         analyzeColumn(variable)
-      } else println("already analyzed " + variable.name)
     }
 
     readColumnValueCounts
