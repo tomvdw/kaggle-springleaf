@@ -37,11 +37,11 @@ case class FeatureVectorCreater(df: DataFrame) {
 
   private def extractNumericalValue(row: Row, column: StructField): Option[Double] = {
     val index = row.fieldIndex(column.name)
-    if (row.isNullAt(index)) None
+    if (row.isNullAt(index)) return None
     column.dataType match {
       case DecimalType() =>
         val value = row.getDecimal(index)
-        if (value == null) None
+        if (value == null) None // TODO: why does this happen? Doesn't row.isNullAt work correctly?
         else Some(value.doubleValue())
       case IntegerType   => Some(row.getAs[Integer](index).toDouble)
       case LongType      => Some(row.getLong(index).toDouble)
