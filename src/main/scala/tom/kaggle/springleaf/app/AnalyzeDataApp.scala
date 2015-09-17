@@ -18,21 +18,33 @@ case class AnalyzeDataApp(ac: ApplicationContext) {
 
   private def analyzeCategoricalVariables {
     val df = ac.df
-    val variables = SchemaInspector(df).getCategoricalVariables
-    val columnValues = ac.cachedAnalysis.analyze(variables)
+    val schemaInspector = SchemaInspector(df)
+    val categoricalVariables = schemaInspector.getCategoricalVariables
+    println("%d number of categoricalVariables".format(categoricalVariables.size))
+    val columnValues = ac.cachedAnalysis.analyze(categoricalVariables)
     val predictedTypes = ac.analyzer.predictType(columnValues)
+    println("%d number of predicted types".format(predictedTypes.size))
 
-    val selectExpressions = predictedTypes.flatMap(pt => SqlDataTypeTransformer.castColumn(pt._1, pt._2))
-    val query = "SELECT %s, %s FROM %s".format(
-      selectExpressions.mkString(",\n"), ApplicationContext.labelFieldName, ApplicationContext.tableName)
-    val trainingSetDf = ac.sqlContext.sql(query)
-    trainingSetDf.show(1) // hm, otherwise the schema seems to be null => NullPointerException
-    val features = FeatureVectorCreater(trainingSetDf).getFeatureVector
-    features.saveAsObjectFile(ApplicationContext.dataFolderPath + "/feature-vector" + ApplicationContext.fraction)
-    
-    features.take(10).foreach(println)
+    val selectExpressionsCategorical = predictedTypes.flatMap(pt => SqlDataTypeTransformer.castColumn(pt._1, pt._2))
+    val selectExpressionsNumerical = schemaInspector.getNumericalColumns.map(x => "%s AS %s".format(x, "DEC_" + x))
+    val selectExpressionsForAllNumerical = selectExpressionsNumerical ++ selectExpressionsCategorical
+    println("%d variables read as categorical, converted to numeric".format(selectExpressionsCategorical.size))
+    println("%d variables read as pure numerical".format(selectExpressionsNumerical.size))
+    println("In total %d of variables".format(selectExpressionsForAllNumerical.size))
+    val trainFeatureVectors = getFeatureVector(ApplicationContext.tableName, selectExpressionsForAllNumerical)
+
+    trainFeatureVectors.take(10).foreach(println)
   }
 
+  def getFeatureVector(tableName: String, selectExpressions: Iterable[String]) = {
+    val query = "SELECT %s, %s FROM %s".format(
+      selectExpressions.mkString(",\n"), ApplicationContext.labelFieldName, tableName)
+    val df = ac.sqlContext.sql(query)
+    df.show(1) // hm, otherwise the schema seems to be null => NullPointerException
+    val features = FeatureVectorCreater(df).getFeatureVector
+    features.saveAsObjectFile(ApplicationContext.trainFeatureVectorPath)
+    features
+  }
 }
 
 object AnalyzeDataApp {

@@ -25,7 +25,7 @@ class ApplicationContext {
   val redisPort = 6379
   val redis = new RedisClient(redisHost, redisPort)
 
-  lazy val df = {
+  val df = {
     val result = dataImporter.readSample
     result.registerTempTable(ApplicationContext.tableName)
     result
@@ -38,10 +38,12 @@ class ApplicationContext {
 
 object ApplicationContext {
   val dataFolderPath = "/Users/tomvanderweide/kaggle/springleaf/"
-  val fraction = 0.01
+  val fraction = 0.05
   val tableName = "xxx"
   val labelFieldName = "target"
 
+  val trainFeatureVectorPath = ApplicationContext.dataFolderPath + "/train-feature-vector" + ApplicationContext.fraction
+  
   val integerRegex = "^-?\\d+$".r
   val doubleRegex = "^-?\\d+\\.\\d+$".r
   val dateRegex = "^\\d{2}[A-Z]{3}\\d{2}".r
