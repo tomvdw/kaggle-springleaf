@@ -1,17 +1,15 @@
 package tom.kaggle.springleaf
 
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.{DataFrame, SQLContext}
 
-class DataImporter(sc: SparkContext, sqlContext: SQLContext) {
-  import sqlContext.implicits._
+class DataImporter(dataFolderPath: String, fraction: Double, sc: SparkContext, sqlContext: SQLContext) {
 
-  val csvTrainPath = ApplicationContext.dataFolderPath + "trainMissing.csv"
-  val sampledCsvTrainPath = ApplicationContext.dataFolderPath + "trainMissing.sampled"
-  val dfTrainPath = ApplicationContext.dataFolderPath + "train.parquet"
-  val jsonTrainPath = ApplicationContext.dataFolderPath + "train.json"
-  val rddTrainPath = ApplicationContext.dataFolderPath + "train.rdd"
+  val csvTrainPath = dataFolderPath + "trainMissing.csv"
+  val sampledCsvTrainPath = dataFolderPath + "trainMissing.sampled"
+  val dfTrainPath = dataFolderPath + "train.parquet"
+  val jsonTrainPath = dataFolderPath + "train.json"
+  val rddTrainPath = dataFolderPath + "train.rdd"
 
   val databricksCsvPackage = "com.databricks.spark.csv"
 
@@ -58,13 +56,13 @@ class DataImporter(sc: SparkContext, sqlContext: SQLContext) {
   }
 
   def readSample: DataFrame = {
-    val path = sampledCsvTrainPath + "." + ApplicationContext.fraction
+    val path = sampledCsvTrainPath + "." + fraction
     try {
       readCsv(path)
     } catch {
       case e: Throwable =>
         val df = readCsv
-        val sampledDf = df.sample(false, ApplicationContext.fraction)
+        val sampledDf = df.sample(withReplacement = false, fraction)
         sampledDf.write
           .format(databricksCsvPackage)
           .option("header", "true")
@@ -72,8 +70,4 @@ class DataImporter(sc: SparkContext, sqlContext: SQLContext) {
         sampledDf
     }
   }
-}
-
-object DataImporter {
-
 }

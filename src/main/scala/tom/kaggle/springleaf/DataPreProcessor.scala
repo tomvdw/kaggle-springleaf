@@ -1,19 +1,11 @@
 package tom.kaggle.springleaf
 
-import org.apache.spark.ml.feature.StringIndexer
-import org.apache.spark.mllib.linalg.Vector
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.DoubleType
-import org.apache.spark.sql.types.IntegerType
-import org.apache.spark.sql.types.LongType
-import org.apache.spark.sql.types.StructField
+import org.apache.spark.mllib.feature.PCA
+import org.apache.spark.mllib.linalg.{Vector, Vectors}
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
-import org.apache.spark.mllib.feature.PCA
-import java.io.PrintWriter
-import org.apache.spark.ml.feature.StringIndexerModel
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.types.{DoubleType, IntegerType, LongType, StructField}
 
 case class DataPreProcessor(ac: ApplicationContext) {
   val schemaInspector = SchemaInspector(ac.df)
@@ -23,7 +15,7 @@ case class DataPreProcessor(ac: ApplicationContext) {
   def getLabel(row: Row): Double = row.getInt(labelIndex).toDouble
 
   def transformCategoricalToIndexed = categoricalTransformer.transform
-  
+
   def extractNumericalValue(row: Row, column: StructField): Option[Double] = {
     val index = row.fieldIndex(column.name)
     if (!row.isNullAt(index)) {
@@ -70,10 +62,9 @@ case class DataPreProcessor(ac: ApplicationContext) {
 
   def getImputedNumericalFeatures: RDD[LabeledPoint] = {
     val featuresWithMissingValues = getNumericalFeatures
-    featuresWithMissingValues.map { lp =>
-      {
-        //      lp.features.
-      }
+    featuresWithMissingValues.map { lp => {
+      //      lp.features.
+    }
     }
     ???
   }

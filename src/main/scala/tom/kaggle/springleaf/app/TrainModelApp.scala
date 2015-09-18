@@ -1,15 +1,14 @@
 package tom.kaggle.springleaf.app
 
-import tom.kaggle.springleaf.ApplicationContext
-import org.apache.spark.mllib.regression.LabeledPoint
-import tom.kaggle.springleaf.ml.PrincipalComponentAnalysis
 import org.apache.spark.mllib.classification.SVMWithSGD
 import org.apache.spark.mllib.feature.PCA
+import org.apache.spark.mllib.regression.LabeledPoint
+import tom.kaggle.springleaf.ApplicationContext
 
 case class TrainModelApp(ac: ApplicationContext) {
 
-  def run {
-    val trainFeatureVectors = ac.sc.objectFile[LabeledPoint](ApplicationContext.trainFeatureVectorPath, 16)
+  def run() {
+    val trainFeatureVectors = ac.sc.objectFile[LabeledPoint](ac.trainFeatureVectorPath, 16)
     trainFeatureVectors.cache()
     println("Nr of training instances " + trainFeatureVectors.count())
 
@@ -25,16 +24,16 @@ case class TrainModelApp(ac: ApplicationContext) {
     val numIterations = 100
     val model = SVMWithSGD.train(reducedFeatures, numIterations)
     model.clearThreshold()
-
   }
 
 }
 
 object TrainModelApp {
   def main(args: Array[String]) {
-    val ac = new ApplicationContext
+    val configFilePath = if (args.length == 0) "application.conf" else args(0)
+    val ac = new ApplicationContext(configFilePath)
     val app = TrainModelApp(ac)
-    app.run
+    app.run()
   }
 
 }

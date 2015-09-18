@@ -1,14 +1,14 @@
 package tom.kaggle.springleaf
 
-import org.apache.spark.sql.SQLContext
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
-import com.redis.RedisClient
-import tom.kaggle.springleaf.analysis.RedisCacheAnalysis
-import tom.kaggle.springleaf.analysis.CategoricalColumnAnalyzer
-import tom.kaggle.springleaf.analysis.ICachedAnalysis
+import java.io.File
 
-class ApplicationContext {
+import com.redis.RedisClient
+import com.typesafe.config.ConfigFactory
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.{SparkConf, SparkContext}
+import tom.kaggle.springleaf.analysis.{CategoricalColumnAnalyzer, ICachedAnalysis, RedisCacheAnalysis}
+
+class ApplicationContext(configFilePath: String) {
   val conf = new SparkConf()
     .setAppName("Kaggle Springleaf")
     .setMaster("local[*]")
@@ -19,7 +19,13 @@ class ApplicationContext {
   sc.hadoopConfiguration.setInt("parquet.block.size", ONE_GB)
 
   val sqlContext = new SQLContext(sc)
-  val dataImporter = new DataImporter(sc, sqlContext)
+
+  val config = ConfigFactory.parseFile(new File(configFilePath))
+  val dataFolderPath = config.getString("data.folder")
+  val fraction = config.getDouble("fraction")
+  val trainFeatureVectorPath = dataFolderPath + "/train-feature-vector" + fraction
+
+  val dataImporter = new DataImporter(dataFolderPath, fraction, sc, sqlContext)
 
   val redisHost = "localhost"
   val redisPort = 6379
@@ -33,17 +39,12 @@ class ApplicationContext {
 
   val analyzer = CategoricalColumnAnalyzer(this)
   val cachedAnalysis: ICachedAnalysis = RedisCacheAnalysis(this, analyzer)
-
 }
 
 object ApplicationContext {
-  val dataFolderPath = "/Users/tomvanderweide/kaggle/springleaf/"
-  val fraction = 0.05
   val tableName = "xxx"
   val labelFieldName = "target"
 
-  val trainFeatureVectorPath = ApplicationContext.dataFolderPath + "/train-feature-vector" + ApplicationContext.fraction
-  
   val integerRegex = "^-?\\d+$".r
   val doubleRegex = "^-?\\d+\\.\\d+$".r
   val dateRegex = "^\\d{2}[A-Z]{3}\\d{2}".r

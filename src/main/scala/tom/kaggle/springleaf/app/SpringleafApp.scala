@@ -1,29 +1,12 @@
 package tom.kaggle.springleaf.app
 
-import org.apache.spark.mllib.feature.PCA
-import org.apache.spark.mllib.linalg.Vector
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.DataType
-import org.apache.spark.sql.types.DoubleType
-import org.apache.spark.sql.types.IntegerType
-import org.apache.spark.sql.types.LongType
-import org.apache.spark.sql.types.StringType
-import org.apache.spark.ml.feature.StringIndexer
-import org.apache.spark.sql.types.StructField
-import org.apache.spark.rdd.RDD
-import tom.kaggle.springleaf.SchemaInspector
-import tom.kaggle.springleaf.DataPreProcessor
-import tom.kaggle.springleaf.ApplicationContext
-import tom.kaggle.springleaf.DataPreProcessor
+import tom.kaggle.springleaf.{ApplicationContext, DataPreProcessor}
 
 object SpringleafApp {
 
   def main(args: Array[String]) {
-    val ac = new ApplicationContext
+    val configFilePath = if (args.length == 0) "application.conf" else args(0)
+    val ac = new ApplicationContext(configFilePath)
 
     val startTime = System.currentTimeMillis()
     val endReadTime = System.currentTimeMillis()

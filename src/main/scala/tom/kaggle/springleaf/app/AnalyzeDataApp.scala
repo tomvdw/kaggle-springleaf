@@ -1,26 +1,19 @@
 package tom.kaggle.springleaf.app
 
-import org.apache.spark.sql.types.DataType
-import org.apache.spark.sql.types.DateType
-import org.apache.spark.sql.types.DoubleType
-import org.apache.spark.sql.types.IntegerType
-import tom.kaggle.springleaf.ApplicationContext
-import tom.kaggle.springleaf.SqlDataTypeTransformer
-import org.apache.spark.sql.types.BooleanType
-import tom.kaggle.springleaf.SchemaInspector
 import tom.kaggle.springleaf.ml.FeatureVectorCreater
+import tom.kaggle.springleaf.{ApplicationContext, SchemaInspector, SqlDataTypeTransformer}
 
 case class AnalyzeDataApp(ac: ApplicationContext) {
 
-  def run {
-    analyzeCategoricalVariables
+  def run() {
+    analyzeCategoricalVariables()
   }
 
-  private def analyzeCategoricalVariables {
+  private def analyzeCategoricalVariables() {
     val df = ac.df
     val schemaInspector = SchemaInspector(df)
     val categoricalVariables = schemaInspector.getCategoricalVariables
-    println("%d number of categoricalVariables".format(categoricalVariables.size))
+    println("%d number of categoricalVariables".format(categoricalVariables.length))
     val columnValues = ac.cachedAnalysis.analyze(categoricalVariables)
     val predictedTypes = ac.analyzer.predictType(columnValues)
     println("%d number of predicted types".format(predictedTypes.size))
@@ -28,30 +21,30 @@ case class AnalyzeDataApp(ac: ApplicationContext) {
     val selectExpressionsCategorical = predictedTypes.flatMap(pt => SqlDataTypeTransformer.castColumn(pt._1, pt._2))
     val selectExpressionsNumerical = schemaInspector.getNumericalColumns.map(x => "%s AS %s".format(x, "DEC_" + x))
     val selectExpressionsForAllNumerical = selectExpressionsNumerical ++ selectExpressionsCategorical
-    println("%d variables read as categorical, converted to numeric".format(selectExpressionsCategorical.size))
-    println("%d variables read as pure numerical".format(selectExpressionsNumerical.size))
-    println("In total %d of variables".format(selectExpressionsForAllNumerical.size))
+    println(s"${selectExpressionsCategorical.size} variables read as categorical, converted to numeric")
+    println(s"${selectExpressionsNumerical.size} variables read as pure numerical")
+    println(s"In total ${selectExpressionsForAllNumerical.size} of variables")
     val trainFeatureVectors = getFeatureVector(ApplicationContext.tableName, selectExpressionsForAllNumerical)
 
     trainFeatureVectors.take(10).foreach(println)
   }
 
   def getFeatureVector(tableName: String, selectExpressions: Iterable[String]) = {
-    val query = "SELECT %s, %s FROM %s".format(
-      selectExpressions.mkString(",\n"), ApplicationContext.labelFieldName, tableName)
+    val query = s"SELECT ${selectExpressions.mkString(",\n")}, ${ApplicationContext.labelFieldName} FROM $tableName"
     val df = ac.sqlContext.sql(query)
     df.show(1) // hm, otherwise the schema seems to be null => NullPointerException
     val features = FeatureVectorCreater(df).getFeatureVector
-    features.saveAsObjectFile(ApplicationContext.trainFeatureVectorPath)
+    features.saveAsObjectFile(ac.trainFeatureVectorPath)
     features
   }
 }
 
 object AnalyzeDataApp {
   def main(args: Array[String]) {
-    val ac = new ApplicationContext
+    val configFilePath = if (args.length == 0) "application.conf" else args(0)
+    val ac = new ApplicationContext(configFilePath)
     val app = AnalyzeDataApp(ac)
-    app.run
+    app.run()
   }
 
 }

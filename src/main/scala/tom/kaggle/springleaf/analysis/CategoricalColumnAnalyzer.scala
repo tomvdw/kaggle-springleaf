@@ -1,21 +1,16 @@
 package tom.kaggle.springleaf.analysis
 
-import scala.util.matching.Regex
-import org.apache.spark.sql.types.DataType
-import org.apache.spark.sql.types.IntegerType
-import org.apache.spark.sql.types.DoubleType
-import org.apache.spark.sql.types.DateType
-import org.apache.spark.sql.types.BooleanType
-import org.apache.spark.sql.types.StructField
-import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.{BooleanType, DataType, DateType, DoubleType, IntegerType, StringType, StructField}
 import tom.kaggle.springleaf.ApplicationContext
+
+import scala.util.matching.Regex
 
 case class CategoricalColumnAnalyzer(
     ac: ApplicationContext) {
 
   def predictType(valuesPerColumn: Map[String, Map[String, Long]]): Map[String, DataType] = {
     valuesPerColumn.map {
-      case (column, values) => {
+      case (column, values) =>
         val counter = countMatches(values)_
         val nrOfIntegers = counter(ApplicationContext.integerRegex)
         val nrOfDoubles = counter(ApplicationContext.doubleRegex)
@@ -31,16 +26,15 @@ case class CategoricalColumnAnalyzer(
             StringType
           }
 
-        (column -> predictedType)
-      }
+        column -> predictedType
     }
   }
 
   def isRemovable(values: Array[(String, Long)]): Boolean = {
     val total = values.map(_._2).sum
     val minimum = math.max(1, total / 100)
-    if (values.size == 1) true
-    else if (values.size == 2) {
+    if (values.length == 1) true
+    else if (values.length == 2) {
       values(0)._2 < minimum || values(1)._2 < minimum
     } else false
   }
@@ -49,7 +43,7 @@ case class CategoricalColumnAnalyzer(
     val results = ac.sqlContext.sql(
       "SELECT %s as v, count(1) as c FROM %s GROUP BY %s"
         .format(column.name, table, column.name))
-    results.map { row => (row.getAs[String]("v") -> row.getAs[Long]("c")) }.collect()
+    results.map { row => row.getAs[String]("v") -> row.getAs[Long]("c") }.collect()
   }
 
   private def countMatches(values: Map[String, Long])(regex: Regex): Int = {

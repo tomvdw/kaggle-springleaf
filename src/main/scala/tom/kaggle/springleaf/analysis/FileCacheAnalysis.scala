@@ -1,31 +1,29 @@
 package tom.kaggle.springleaf.analysis
 
-import java.io.PrintWriter
-import java.io.BufferedWriter
-import java.io.FileWriter
+import java.io.{BufferedWriter, FileWriter, PrintWriter}
 
 import org.apache.spark.sql.types.StructField
-
 import tom.kaggle.springleaf.ApplicationContext
 
 case class FileCacheAnalysis(ac: ApplicationContext, analyzer: CategoricalColumnAnalyzer) extends ICachedAnalysis {
+  private val columnValueCountsPath = s"${ac.dataFolderPath}/column-value-counts${ac.fraction}"
   private var writer: Option[PrintWriter] = None
 
   def readColumnValueCounts: Map[String, Map[String, Long]] = {
     try {
-      val lines = scala.io.Source.fromFile(AnalysisReaderWriter.columnValueCountsPath).getLines()
+      val lines = scala.io.Source.fromFile(columnValueCountsPath).getLines()
       lines.map { line =>
         val parts = line.split(":", 2)
         val column = parts(0)
         val valueCounts = parts(1).split(";").map { v =>
           val p = v.substring(1, v.length() - 1).split(",")
-          (p(0) -> p(1).toLong)
+          p(0) -> p(1).toLong
         }.toMap
-        (column -> valueCounts)
+        column -> valueCounts
       }.toMap
     } catch {
       case e: Throwable =>
-        println("Could not read column value counts! " + e.toString())
+        println("Could not read column value counts! " + e.toString)
         Map()
     }
   }
@@ -38,7 +36,7 @@ case class FileCacheAnalysis(ac: ApplicationContext, analyzer: CategoricalColumn
         analyzeColumn(variable, writer)
       } else println("already analyzed " + variable.name)
     }
-    writer.close
+    writer.close()
     readColumnValueCounts
   }
 
@@ -51,17 +49,16 @@ case class FileCacheAnalysis(ac: ApplicationContext, analyzer: CategoricalColumn
   def getColumnValueCountsWriter: PrintWriter = {
     writer match {
       case Some(w) => w
-      case None => {
-        writer = Some(new PrintWriter(new BufferedWriter(new FileWriter(AnalysisReaderWriter.columnValueCountsPath, true))))
+      case None =>
+        writer = Some(new PrintWriter(new BufferedWriter(new FileWriter(columnValueCountsPath, true))))
         writer.get
-      }
     }
   }
 
-  def close = {
+  def close() = {
     writer match {
       case Some(w) =>
-        w.close
+        w.close()
         writer = None
       case None => // Writer is already closed, so do nothing
     }
@@ -69,7 +66,5 @@ case class FileCacheAnalysis(ac: ApplicationContext, analyzer: CategoricalColumn
 }
 
 object AnalysisReaderWriter {
-  val columnValueCountsPath = ApplicationContext.dataFolderPath + "/column-value-counts" + ApplicationContext.fraction
-
   val valueRegex = "^\\(\\)$".r
 }

@@ -1,27 +1,27 @@
 package tom.kaggle.springleaf
 
-import org.apache.spark.ml.feature.StringIndexer
-import org.apache.spark.ml.feature.StringIndexerModel
 import java.io.PrintWriter
-import org.apache.spark.sql.DataFrame
-import scala.collection.mutable.Map
 
-case class CategoricToIndexTransformer(
-    ac: ApplicationContext,
-    newColumnPrefix: String = "ind_",
-    outputFileName: String = "string-index-output" + ApplicationContext.fraction) {
+import org.apache.spark.ml.feature.{StringIndexer, StringIndexerModel}
+import org.apache.spark.sql.DataFrame
+
+import scala.collection.{immutable, mutable}
+
+case class CategoricToIndexTransformer(ac: ApplicationContext, newColumnPrefix: String = "ind_") {
+
+  val outputFileName: String = s"string-index-output${ac.fraction}"
 
   private def debug(model: StringIndexerModel, columnName: String, writer: PrintWriter) {
-    println("Processed column %s with %d different values".format(columnName, model.labels.size))
-    writer.println("%s:%s".format(columnName, model.labels.mkString("'", "','", "'")))
+    println(s"Processed column $columnName with ${model.labels.length} different values")
+    writer.println(s"$columnName:${model.labels.mkString("'", "','", "'")}")
     writer.flush()
   }
 
-  def transform: (DataFrame, Map[String, Array[String]]) = {
-    val writer = new PrintWriter(ApplicationContext.dataFolderPath + "/" + outputFileName, "UTF-8")
+  def transform: (DataFrame, immutable.Map[String, Array[String]]) = {
+    val writer = new PrintWriter(s"${ac.dataFolderPath}/$outputFileName", "UTF-8")
 
     var tmpDf = ac.df
-    var indexedNames: Map[String, Array[String]] = Map()
+    val indexedNames: mutable.Map[String, Array[String]] = mutable.Map()
     for (v <- SchemaInspector(ac.df).getCategoricalVariables) {
       val indexedName = newColumnPrefix + v.name
       val indexer = new StringIndexer().setInputCol(v.name).setOutputCol(indexedName)
@@ -31,7 +31,7 @@ case class CategoricToIndexTransformer(
       indexedNames.put(indexedName, model.labels)
     }
     writer.close()
-    (tmpDf, indexedNames)
+    (tmpDf, indexedNames.toMap)
   }
 
 }
