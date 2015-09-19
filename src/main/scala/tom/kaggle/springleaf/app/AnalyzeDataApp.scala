@@ -44,9 +44,9 @@ case class AnalyzeDataApp(ac: ApplicationContext) {
     val query = s"SELECT ${selectExpressions.mkString(",\n")}, ${ApplicationContext.labelFieldName} FROM $tableName"
     val df = ac.sqlContext.sql(query)
     df.show(4) // hm, otherwise the schema seems to be null => NullPointerException
-    val features = FeatureVectorCreator(df).getFeatureVector
+    val features = FeatureVectorCreator(df).getFeatureVectors
     try {
-    	features.saveAsObjectFile(ac.trainFeatureVectorPath)
+      features.saveAsObjectFile(ac.trainFeatureVectorPath)
     } catch {
       case e: Throwable => println("Could not store feature vectors. Probably they already exist.")
     }
