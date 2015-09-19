@@ -24,11 +24,12 @@ class ApplicationContext(configFilePath: String) {
   val dataFolderPath = config.getString("data.folder")
   val fraction = config.getDouble("fraction")
   val trainFeatureVectorPath = dataFolderPath + "/train-feature-vector" + fraction
+  val cachedPredictedTypesPath = dataFolderPath + "/predicted-types"
 
   val dataImporter = new DataImporter(dataFolderPath, fraction, sc, sqlContext)
 
-  val redisHost = "localhost"
-  val redisPort = 6379
+  val redisHost = config.getString("redis.host")
+  val redisPort = config.getInt("redis.port")
   val redis = new RedisClient(redisHost, redisPort)
 
   val df = {

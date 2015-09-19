@@ -1,11 +1,18 @@
 package tom.kaggle.springleaf.ml
 
-import org.apache.spark.mllib.linalg.{Vector, Vectors}
+import java.lang.Double
+import java.math.BigDecimal
+
+import org.apache.spark.mllib.linalg.Vector
+import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.types.{DecimalType, DoubleType, IntegerType, LongType, StructField}
-import org.apache.spark.sql.{DataFrame, Row}
-import tom.kaggle.springleaf.{ApplicationContext, SchemaInspector}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.types.StructField
+
+import tom.kaggle.springleaf.ApplicationContext
+import tom.kaggle.springleaf.SchemaInspector
 
 case class FeatureVectorCreater(df: DataFrame) {
   private val schemaInspector = SchemaInspector(df)
@@ -19,7 +26,7 @@ case class FeatureVectorCreater(df: DataFrame) {
 
   private def getNumericalValues(row: Row): Vector = {
     val numericalVariables = schemaInspector.getProcessedNumericalVariables(row.schema)
-    val sparseValues = for {
+    val sparseValues: Seq[(Int, scala.Double)] = for {
       (column, index) <- numericalVariables.zipWithIndex
       optionalValue <- extractNumericalValue(row, column)
       value <- Some(optionalValue)
@@ -27,20 +34,21 @@ case class FeatureVectorCreater(df: DataFrame) {
     Vectors.sparse(row.size, sparseValues)
   }
 
-  private def extractNumericalValue(row: Row, column: StructField): Option[Double] = {
+  private def extractNumericalValue(row: Row, column: StructField): Option[scala.Double] = {
     val index = row.fieldIndex(column.name)
     if (row.isNullAt(index)) return None
-    column.dataType match {
-      case DecimalType() =>
-        val value = row.getDecimal(index)
-        if (value == null) None // TODO: why does this happen? Doesn't row.isNullAt work correctly?
+    else parseDouble(row.get(index))
+  }
+
+  private def parseDouble(rawValue: Any): Option[scala.Double] = {
+    rawValue match {
+      case value: Integer => Some(value.toDouble)
+      case value: BigDecimal =>
+        if (value == null) None
         else Some(value.doubleValue())
-      case IntegerType => Some(row.getAs[Integer](index).toDouble)
-      case LongType => Some(row.getLong(index).toDouble)
-      case DoubleType => Some(row.getDouble(index))
-      case default =>
-        println("for %s type not recognized: %s".format(column.name, column.dataType))
-        None
+      case value: Long => Some(value.toDouble)
+      case value: Double => Some(value)
+      case default => None
     }
   }
 

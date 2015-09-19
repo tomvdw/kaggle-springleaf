@@ -1,7 +1,15 @@
 package tom.kaggle.springleaf.app
 
 import tom.kaggle.springleaf.ml.FeatureVectorCreater
-import tom.kaggle.springleaf.{ApplicationContext, SchemaInspector, SqlDataTypeTransformer}
+import tom.kaggle.springleaf.{ ApplicationContext, SchemaInspector, SqlDataTypeTransformer }
+import org.apache.spark.sql.types.DataType
+import java.io.PrintWriter
+import java.io.BufferedWriter
+import java.io.FileWriter
+import java.io.File
+import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.BooleanType
+import org.apache.spark.sql.types.DoubleType
 
 case class AnalyzeDataApp(ac: ApplicationContext) {
 
@@ -12,11 +20,19 @@ case class AnalyzeDataApp(ac: ApplicationContext) {
   private def analyzeCategoricalVariables() {
     val df = ac.df
     val schemaInspector = SchemaInspector(df)
-    val categoricalVariables = schemaInspector.getCategoricalVariables
-    println("%d number of categoricalVariables".format(categoricalVariables.length))
-    val columnValues = ac.cachedAnalysis.analyze(categoricalVariables)
-    val predictedTypes = ac.analyzer.predictType(columnValues)
-    println("%d number of predicted types".format(predictedTypes.size))
+
+    val predictedTypes: Map[String, DataType] = {
+      val cachedPredictedTypes = readPredictedTypes()
+      if (cachedPredictedTypes.isDefined) cachedPredictedTypes.get
+      else {
+        val categoricalVariables = schemaInspector.getCategoricalVariables
+        println("%d number of categoricalVariables".format(categoricalVariables.length))
+        val columnValues = ac.cachedAnalysis.analyze(categoricalVariables)
+        val predictedTypes = ac.analyzer.predictType(columnValues)
+        savePredictedTypes(predictedTypes)
+        predictedTypes
+      }
+    }
 
     val selectExpressionsCategorical = predictedTypes.flatMap(pt => SqlDataTypeTransformer.castColumn(pt._1, pt._2))
     val selectExpressionsNumerical = schemaInspector.getNumericalColumns.map(x => "%s AS %s".format(x, "DEC_" + x))
@@ -26,16 +42,41 @@ case class AnalyzeDataApp(ac: ApplicationContext) {
     println(s"In total ${selectExpressionsForAllNumerical.size} of variables")
     val trainFeatureVectors = getFeatureVector(ApplicationContext.tableName, selectExpressionsForAllNumerical)
 
-    trainFeatureVectors.take(10).foreach(println)
+    //trainFeatureVectors.take(5).foreach(println)
   }
 
-  def getFeatureVector(tableName: String, selectExpressions: Iterable[String]) = {
+  private def getFeatureVector(tableName: String, selectExpressions: Iterable[String]) = {
     val query = s"SELECT ${selectExpressions.mkString(",\n")}, ${ApplicationContext.labelFieldName} FROM $tableName"
     val df = ac.sqlContext.sql(query)
-    df.show(1) // hm, otherwise the schema seems to be null => NullPointerException
+    df.show(4) // hm, otherwise the schema seems to be null => NullPointerException
     val features = FeatureVectorCreater(df).getFeatureVector
-    features.saveAsObjectFile(ac.trainFeatureVectorPath)
+    try {
+    	features.saveAsObjectFile(ac.trainFeatureVectorPath)
+    } catch {
+      case e: Throwable => println("Could not store feature vectors. Probably they already exist.")
+    }
     features
+  }
+
+  private def savePredictedTypes(predictedTypes: Map[String, DataType]) {
+    val outputFile = new File(ac.cachedPredictedTypesPath)
+    if (outputFile.exists()) outputFile.delete()
+    val writer = new PrintWriter(new BufferedWriter(new FileWriter(outputFile)))
+    predictedTypes.foreach { case (column, predictedType) => writer.println(s"$column = ${predictedType.json}") }
+    writer.close()
+  }
+
+  private def readPredictedTypes(): Option[Map[String, DataType]] = {
+    val file = new File(ac.cachedPredictedTypesPath)
+    if (file.exists()) {
+      val lines = scala.io.Source.fromFile(file).getLines()
+      val map: Map[String, DataType] = lines.map { line =>
+        val parts = line.split(" = ", 2)
+        val predictedType = DataType.fromJson(parts(1))
+        parts(0) -> predictedType
+      }.toMap
+      Some(map)
+    } else None
   }
 }
 
