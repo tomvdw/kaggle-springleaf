@@ -6,7 +6,7 @@ import com.redis.RedisClient
 import com.typesafe.config.ConfigFactory
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.{SparkConf, SparkContext}
-import tom.kaggle.springleaf.analysis.{CategoricalColumnAnalyzer, ICachedAnalysis, RedisCacheAnalysis}
+import tom.kaggle.springleaf.analysis.{DataStatistics, CategoricalColumnAnalyzer, ICachedAnalysis, RedisCacheAnalysis}
 
 class ApplicationContext(configFilePath: String) {
   val conf = new SparkConf()
@@ -39,7 +39,8 @@ class ApplicationContext(configFilePath: String) {
   }
 
   val analyzer = CategoricalColumnAnalyzer(this)
-  val cachedAnalysis: ICachedAnalysis = RedisCacheAnalysis(this, analyzer)
+  val statistics = new DataStatistics(sqlContext, ApplicationContext.tableName)
+  val cachedAnalysis: ICachedAnalysis = RedisCacheAnalysis(this, statistics)
 }
 
 object ApplicationContext {

@@ -39,13 +39,6 @@ case class CategoricalColumnAnalyzer(
     } else false
   }
 
-  def getValueCounts(table: String, column: StructField): Array[(String, Long)] = {
-    val results = ac.sqlContext.sql(
-      "SELECT %s as v, count(1) as c FROM %s GROUP BY %s"
-        .format(column.name, table, column.name))
-    results.map { row => row.getAs[String]("v") -> row.getAs[Long]("c") }.collect()
-  }
-
   private def countMatches(values: Map[String, Long])(regex: Regex): Int = {
     values.map {
       case (value, occurrences) =>

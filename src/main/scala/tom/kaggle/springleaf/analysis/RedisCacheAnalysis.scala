@@ -4,7 +4,7 @@ import com.redis.serialization.Parse.Implicits.{parseLong, parseString}
 import org.apache.spark.sql.types.StructField
 import tom.kaggle.springleaf.{ApplicationContext, KeyHelper}
 
-case class RedisCacheAnalysis(ac: ApplicationContext, analyzer: CategoricalColumnAnalyzer) extends ICachedAnalysis {
+case class RedisCacheAnalysis(ac: ApplicationContext, statistics: DataStatistics) extends ICachedAnalysis {
   val keyHelper = KeyHelper(ac)
 
   def readColumnValueCounts: Map[String, Map[String, Long]] = {
@@ -42,9 +42,8 @@ case class RedisCacheAnalysis(ac: ApplicationContext, analyzer: CategoricalColum
   private def analyzeColumn(column: StructField) {
     val columnKey = keyHelper.keyFor(column)
     if (!ac.redis.exists(columnKey)) {
-      val valueCounts = analyzer.getValueCounts(ApplicationContext.tableName, column)
-      valueCounts.foreach(valueCount => ac.redis.hset(columnKey, valueCount._1, valueCount._2))
+      statistics.valueCount(column)
+        .foreach(valueCount => ac.redis.hset(columnKey, valueCount._1, valueCount._2))
     }
   }
-
 }
