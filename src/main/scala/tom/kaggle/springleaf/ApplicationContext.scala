@@ -6,7 +6,7 @@ import com.redis.RedisClient
 import com.typesafe.config.ConfigFactory
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.{SparkConf, SparkContext}
-import tom.kaggle.springleaf.analysis.{DataStatistics, CategoricalColumnAnalyzer, ICachedAnalysis, RedisCacheAnalysis}
+import tom.kaggle.springleaf.analysis._
 
 class ApplicationContext(configFilePath: String) {
   val conf = new SparkConf()
@@ -24,7 +24,7 @@ class ApplicationContext(configFilePath: String) {
   val dataFolderPath = config.getString("data.folder")
   val fraction = config.getDouble("fraction")
   val trainFeatureVectorPath = dataFolderPath + "/train-feature-vector" + fraction
-  val cachedPredictedTypesPath = dataFolderPath + "/predicted-types"
+  val cachedInferrededTypesPath = dataFolderPath + "/predicted-types"
 
   val dataImporter = new DataImporter(dataFolderPath, fraction, sc, sqlContext)
 
@@ -38,18 +38,13 @@ class ApplicationContext(configFilePath: String) {
     result
   }
 
-  val analyzer = CategoricalColumnAnalyzer(this)
+  val typeInference = new ColumnTypeInference
   val statistics = new DataStatistics(sqlContext, ApplicationContext.tableName)
   val cachedAnalysis: ICachedAnalysis = RedisCacheAnalysis(this, statistics)
 }
 
 object ApplicationContext {
+
   val tableName = "xxx"
   val labelFieldName = "target"
-
-  val integerRegex = "^-?\\d+$".r
-  val doubleRegex = "^-?\\d+\\.\\d+$".r
-  val dateRegex = "^\\d{2}[A-Z]{3}\\d{2}".r
-  val booleanRegex = "^(false|true)$".r
-
 }

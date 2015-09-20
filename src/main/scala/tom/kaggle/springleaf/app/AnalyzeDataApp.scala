@@ -16,20 +16,21 @@ case class AnalyzeDataApp(ac: ApplicationContext) {
     val df = ac.df
     val schemaInspector = SchemaInspector(df)
 
-    val predictedTypes: Map[String, DataType] = {
-      val cachedPredictedTypes = readPredictedTypes()
-      if (cachedPredictedTypes.isDefined) cachedPredictedTypes.get
-      else {
+    val inferredTypes: Map[String, DataType] = {
+      readInferredTypes().getOrElse {
         val categoricalVariables = schemaInspector.getCategoricalVariables
         println("%d number of categoricalVariables".format(categoricalVariables.length))
         val columnValues = ac.cachedAnalysis.analyze(categoricalVariables)
-        val predictedTypes = ac.analyzer.predictType(columnValues)
-        savePredictedTypes(predictedTypes)
-        predictedTypes
+        val inferredTypes = ac.typeInference.inferTypes(columnValues)
+        inferredTypes.foreach {
+          case (column, dataType) => println(s"Inferred type ${dataType.typeName} for column $column")
+        }
+        saveInferredTypes(inferredTypes)
+        inferredTypes
       }
     }
 
-    val selectExpressionsCategorical = predictedTypes.flatMap(pt => SqlDataTypeTransformer.castColumn(pt._1, pt._2))
+    val selectExpressionsCategorical = inferredTypes.flatMap(pt => SqlDataTypeTransformer.castColumn(pt._1, pt._2))
     val selectExpressionsNumerical = schemaInspector.getNumericalColumns.map(x => "%s AS %s".format(x, "DEC_" + x))
     val selectExpressionsForAllNumerical = selectExpressionsNumerical ++ selectExpressionsCategorical
     println(s"${selectExpressionsCategorical.size} variables read as categorical, converted to numeric")
@@ -53,22 +54,22 @@ case class AnalyzeDataApp(ac: ApplicationContext) {
     features
   }
 
-  private def savePredictedTypes(predictedTypes: Map[String, DataType]) {
-    val outputFile = new File(ac.cachedPredictedTypesPath)
+  private def saveInferredTypes(inferredTypes: Map[String, DataType]) {
+    val outputFile = new File(ac.cachedInferrededTypesPath)
     if (outputFile.exists()) outputFile.delete()
     val writer = new PrintWriter(new BufferedWriter(new FileWriter(outputFile)))
-    predictedTypes.foreach { case (column, predictedType) => writer.println(s"$column = ${predictedType.json}") }
+    inferredTypes.foreach { case (column, inferredType) => writer.println(s"$column = ${inferredType.json}") }
     writer.close()
   }
 
-  private def readPredictedTypes(): Option[Map[String, DataType]] = {
-    val file = new File(ac.cachedPredictedTypesPath)
+  private def readInferredTypes(): Option[Map[String, DataType]] = {
+    val file = new File(ac.cachedInferrededTypesPath)
     if (file.exists()) {
       val lines = scala.io.Source.fromFile(file).getLines()
       val map: Map[String, DataType] = lines.map { line =>
         val parts = line.split(" = ", 2)
-        val predictedType = DataType.fromJson(parts(1))
-        parts(0) -> predictedType
+        val inferredType = DataType.fromJson(parts(1))
+        parts(0) -> inferredType
       }.toMap
       Some(map)
     } else None
