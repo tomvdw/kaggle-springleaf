@@ -13,7 +13,7 @@ case class SvmTrainer(trainingDataSet: RDD[LabeledPoint], components: Int, numIt
     dataSet.map(p => p.copy(features = pca.transform(p.features)))
   }
 
-  println("Reducing dataset")
+  println("Reducing dimensionality of data set")
   val reducedFeatures = reduce(trainingDataSet)
   reducedFeatures.cache()
 

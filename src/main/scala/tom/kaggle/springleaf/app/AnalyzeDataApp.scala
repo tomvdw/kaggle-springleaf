@@ -1,15 +1,10 @@
 package tom.kaggle.springleaf.app
 
-import tom.kaggle.springleaf.ml.FeatureVectorCreater
-import tom.kaggle.springleaf.{ ApplicationContext, SchemaInspector, SqlDataTypeTransformer }
+import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
+
 import org.apache.spark.sql.types.DataType
-import java.io.PrintWriter
-import java.io.BufferedWriter
-import java.io.FileWriter
-import java.io.File
-import org.apache.spark.sql.types.IntegerType
-import org.apache.spark.sql.types.BooleanType
-import org.apache.spark.sql.types.DoubleType
+import tom.kaggle.springleaf.ml.FeatureVectorCreator
+import tom.kaggle.springleaf.{ApplicationContext, SchemaInspector, SqlDataTypeTransformer}
 
 case class AnalyzeDataApp(ac: ApplicationContext) {
 
@@ -49,7 +44,7 @@ case class AnalyzeDataApp(ac: ApplicationContext) {
     val query = s"SELECT ${selectExpressions.mkString(",\n")}, ${ApplicationContext.labelFieldName} FROM $tableName"
     val df = ac.sqlContext.sql(query)
     df.show(4) // hm, otherwise the schema seems to be null => NullPointerException
-    val features = FeatureVectorCreater(df).getFeatureVector
+    val features = FeatureVectorCreator(df).getFeatureVector
     try {
     	features.saveAsObjectFile(ac.trainFeatureVectorPath)
     } catch {
