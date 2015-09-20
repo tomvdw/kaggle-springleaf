@@ -12,15 +12,23 @@ src_managed/
 project/boot/
 project/plugins/project/
 
+# Gradle
+/.gradle/
+/build/
+
 # Scala-IDE specific
 .scala_dependencies
 .worksheet
 
+# IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
 .classpath
 /.cache-main
-.idea/
 .project
 .settings/
-springleaf.iml
 
 data/
