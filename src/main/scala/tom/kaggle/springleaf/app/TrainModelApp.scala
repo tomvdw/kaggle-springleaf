@@ -3,7 +3,6 @@ package tom.kaggle.springleaf.app
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
 import org.apache.spark.mllib.regression.LabeledPoint
 import tom.kaggle.springleaf.ApplicationContext
-import tom.kaggle.springleaf.ml.SvmTrainer
 import tom.kaggle.springleaf.ml.GbtReducedFeaturesEvaluator
 
 case class TrainModelApp(ac: ApplicationContext) {
@@ -29,8 +28,16 @@ case class TrainModelApp(ac: ApplicationContext) {
     // Get evaluation metrics.
     val metrics = new BinaryClassificationMetrics(scoreAndLabels)
     println(s"\nArea under ROC = ${metrics.areaUnderROC()}")
+    println(s"Evaluation: ${interpretAreaUnderROC(metrics.areaUnderROC())}")
   }
 
+  private def interpretAreaUnderROC(areaUnderROC: Double): String = {
+    if (areaUnderROC < 0.6) "FAIL"
+    else if (areaUnderROC < 0.7) "poor"
+    else if (areaUnderROC < 0.8) "fair"
+    else if (areaUnderROC < 0.9) "decent"
+    else "excellent"
+  }
 }
 
 object TrainModelApp {

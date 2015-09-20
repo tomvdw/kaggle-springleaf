@@ -1,10 +1,10 @@
 package tom.kaggle.springleaf.ml
 
-import org.apache.spark.mllib.tree.configuration.BoostingStrategy
-import org.apache.spark.mllib.tree.GradientBoostedTrees
-import org.apache.spark.rdd.RDD
 import org.apache.spark.mllib.feature.PCA
 import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.mllib.tree.GradientBoostedTrees
+import org.apache.spark.mllib.tree.configuration.BoostingStrategy
+import org.apache.spark.rdd.RDD
 
 case class GbtReducedFeaturesEvaluator(trainingDataSet: RDD[LabeledPoint], components: Int, numIterations: Int) {
   println("Fitting PCA model")
@@ -14,7 +14,7 @@ case class GbtReducedFeaturesEvaluator(trainingDataSet: RDD[LabeledPoint], compo
     dataSet.map(p => p.copy(features = pca.transform(p.features)))
   }
 
-  val boostingStrategy = BoostingStrategy.defaultParams("Classification")
+  val boostingStrategy: BoostingStrategy = BoostingStrategy.defaultParams("Classification")
   boostingStrategy.numIterations = numIterations
   boostingStrategy.treeStrategy.numClasses = 2
   boostingStrategy.treeStrategy.maxDepth = 5
