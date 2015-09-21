@@ -7,9 +7,9 @@ import scala.util.matching.Regex
 class ColumnTypeInference {
 
   def inferTypes(valuesPerColumn: Map[String, Map[String, Long]]): Map[String, DataType] =
-    valuesPerColumn.mapValues { values =>
-      val count = (regex: Regex) => values.filterKeys(regex.findFirstIn(_).nonEmpty).values.sum
-      val threshold = math.max(1, values.size / 2)
+    valuesPerColumn.mapValues { occurrencesPerValue =>
+      def count(regex: Regex) = occurrencesPerValue.filterKeys(regex.findFirstIn(_).nonEmpty).values.sum
+      val threshold = math.max(1, totalNumberOfOccurrences(occurrencesPerValue) / 2)
 
       lazy val intCount = count(ColumnTypeInference.IntegerRegex)
       lazy val doubleCount = count(ColumnTypeInference.DoubleRegex)
@@ -22,6 +22,8 @@ class ColumnTypeInference {
       else if (boolCount >= threshold) BooleanType
       else StringType
     }
+
+  private def totalNumberOfOccurrences(occurrencesPerValue: Map[String, Long]) = occurrencesPerValue.values.sum
 }
 
 object ColumnTypeInference {
