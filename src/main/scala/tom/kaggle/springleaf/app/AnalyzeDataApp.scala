@@ -1,10 +1,10 @@
 package tom.kaggle.springleaf.app
 
-import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
-
+import java.io.{ BufferedWriter, File, FileWriter, PrintWriter }
 import org.apache.spark.sql.types.DataType
 import tom.kaggle.springleaf.ml.FeatureVectorCreator
-import tom.kaggle.springleaf.{ApplicationContext, SchemaInspector, SqlDataTypeTransformer}
+import tom.kaggle.springleaf.{ ApplicationContext, SchemaInspector, SqlDataTypeTransformer }
+import tom.kaggle.springleaf.IndexedCategoricalVariableCreator
 
 case class AnalyzeDataApp(ac: ApplicationContext) {
 
@@ -31,7 +31,7 @@ case class AnalyzeDataApp(ac: ApplicationContext) {
     }
 
     val selectExpressionsCategorical = inferredTypes.flatMap(pt => SqlDataTypeTransformer.castColumn(pt._1, pt._2))
-    val selectExpressionsNumerical = schemaInspector.getNumericalColumns.map(x => "%s AS %s".format(x, "DEC_" + x))
+    val selectExpressionsNumerical = schemaInspector.getNumericalColumns.map(x => s"$x AS ${ApplicationContext.prefixOfDecimal}_${x}")
     val selectExpressionsForAllNumerical = selectExpressionsNumerical ++ selectExpressionsCategorical
     println(s"${selectExpressionsCategorical.size} variables read as categorical, converted to numeric")
     println(s"${selectExpressionsNumerical.size} variables read as pure numerical")
@@ -44,8 +44,11 @@ case class AnalyzeDataApp(ac: ApplicationContext) {
   private def getFeatureVector(tableName: String, selectExpressions: Iterable[String]) = {
     val query = s"SELECT ${selectExpressions.mkString(",\n")}, ${ApplicationContext.labelFieldName} FROM $tableName"
     val df = ac.sqlContext.sql(query)
-    df.show(4) // hm, otherwise the schema seems to be null => NullPointerException
-    val features = FeatureVectorCreator(df).getFeatureVectors
+    df.show(1) // hm, otherwise the schema seems to be null => NullPointerException
+
+    val dfWithIndexedCategoricalVariables = IndexedCategoricalVariableCreator(df).transformedDf
+    dfWithIndexedCategoricalVariables.show(1)
+    val features = FeatureVectorCreator(dfWithIndexedCategoricalVariables).getFeatureVectors
     try {
       features.saveAsObjectFile(ac.trainFeatureVectorPath)
     } catch {

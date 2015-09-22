@@ -30,7 +30,7 @@ class ApplicationContext(configFilePath: String) {
 
   val redisHost = config.getString("redis.host")
   val redisPort = config.getInt("redis.port")
-  val redis = new RedisClient(redisHost, redisPort)
+  lazy val redis = new RedisClient(redisHost, redisPort)
 
   val df = {
     val result = dataImporter.readSample
@@ -47,4 +47,9 @@ object ApplicationContext {
 
   val tableName = "xxx"
   val labelFieldName = "target"
+  
+  val prefixOfIndexedString = "ISTR"
+  val prefixOfString = "STR"
+  val prefixOfDecimal = "DEC"
+  val prefixOfBool = "BOOL"
 }
