@@ -1,14 +1,10 @@
 package tom.kaggle.springleaf.app
 
-import scala.beans.BeanInfo
-
-import org.apache.spark.annotation.Since
+import org.apache.spark.ml.feature.StandardScaler
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
 import org.apache.spark.mllib.regression.LabeledPoint
-
 import tom.kaggle.springleaf.ApplicationContext
-import tom.kaggle.springleaf.ml.FeatureVector
-import tom.kaggle.springleaf.ml.GbtReducedFeaturesEvaluator
+import tom.kaggle.springleaf.ml.{FeatureVector, GbtReducedFeaturesEvaluator}
 
 case class TrainModelApp(ac: ApplicationContext) {
 
@@ -17,8 +13,24 @@ case class TrainModelApp(ac: ApplicationContext) {
     val splits = trainFeatureVectors.randomSplit(Array(0.6, 0.2, 0.2))
     val (trainingSet, testSet, validationSet) = (splits(0), splits(1), splits(2))
 
+    import ac.sqlContext.implicits._
+    val trainingSetDF = trainingSet.toDF()
+    val scaler = new StandardScaler()
+      .setInputCol("numericalFeatures")
+      .setOutputCol("scaledNumericalFeatures")
+      .setWithStd(true)
+      .setWithMean(false)
+
+    // Compute summary statistics by fitting the StandardScaler
+    val scalerModel = scaler.fit(trainingSetDF)
+
+    // Normalize each feature to have unit standard deviation.
+    val scaledData = scalerModel.transform(trainingSetDF)
+    trainingSetDF.show(10)
+    scaledData.show(10)
+
     // TODO: ml pipeline stuff can be inserted here: http://spark.apache.org/docs/latest/ml-features.html
-    
+
     val trainingLabeledPoints = trainingSet.map(x => LabeledPoint(x.label, x.numericalFeatures))
     val testLabeledPoints = testSet.map(x => LabeledPoint(x.label, x.numericalFeatures))
 
