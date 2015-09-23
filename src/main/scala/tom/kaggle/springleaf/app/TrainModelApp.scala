@@ -1,25 +1,33 @@
 package tom.kaggle.springleaf.app
 
-import org.apache.spark.ml.feature.StandardScaler
-import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
-import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.mllib.linalg.Vector
-import tom.kaggle.springleaf.ApplicationContext
-import tom.kaggle.springleaf.ml.{ FeatureVector, GbtReducedFeaturesEvaluator }
-import tom.kaggle.springleaf.ml.SvmTrainer
-import org.apache.spark.ml.feature.PCA
+import org.apache.spark.SparkContext
+import org.apache.spark.ml.feature.{PCA, StandardScaler}
 import org.apache.spark.mllib.classification.SVMWithSGD
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
+import org.apache.spark.mllib.linalg.Vector
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.sql.{DataFrame, SQLContext}
+import scaldi.{Injectable, TypesafeConfigInjector}
+import tom.kaggle.springleaf.ml.FeatureVector
+import tom.kaggle.springleaf.{SparkModule, SpringLeafModule}
 
-case class TrainModelApp(ac: ApplicationContext) {
+object TrainModelApp extends App with Injectable {
+  implicit val injector = TypesafeConfigInjector() :: new SparkModule :: new SpringLeafModule
+
+  private val sc = inject[SparkContext]
+  private val sqlContext = inject[SQLContext]
+  private val trainFeatureVectorPath = inject[String]("data.path.trainFeatureVector")
+
+  import sqlContext.implicits._
+
+  run()
 
   def run() {
     val scaledNumericalFeatures = "scaledNumericalFeatures"
     val pcaFeatures = "pcaFeatures"
-    import ac.sqlContext.implicits._
 
     // Pre-process with ML library: http://spark.apache.org/docs/latest/ml-features.html
-    val rawFeatureVectorsDF = ac.sc.objectFile[FeatureVector](ac.trainFeatureVectorPath, 16).toDF()
+    val rawFeatureVectorsDF = sc.objectFile[FeatureVector](trainFeatureVectorPath, 16).toDF()
     val scaledData = scale(rawFeatureVectorsDF, "numericalFeatures", scaledNumericalFeatures)
     val pcaDF = reduce(scaledData, scaledNumericalFeatures, pcaFeatures, k = 50)
 
@@ -82,12 +90,3 @@ case class TrainModelApp(ac: ApplicationContext) {
   }
 }
 
-object TrainModelApp {
-  def main(args: Array[String]) {
-    val configFilePath = if (args.length == 0) "application.conf" else args(0)
-    val ac = new ApplicationContext(configFilePath)
-    val app = TrainModelApp(ac)
-    app.run()
-  }
-
-}

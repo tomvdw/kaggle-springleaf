@@ -3,13 +3,13 @@ package tom.kaggle.springleaf
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, SQLContext}
 
-class DataImporter(dataFolderPath: String, fraction: Double, sc: SparkContext, sqlContext: SQLContext) {
+class DataImporter(dataPath: String, fraction: Double, sc: SparkContext, sqlContext: SQLContext) {
 
-  val csvTrainPath = dataFolderPath + "trainMissing.csv"
-  val sampledCsvTrainPath = dataFolderPath + "trainMissing.sampled"
-  val dfTrainPath = dataFolderPath + "train.parquet"
-  val jsonTrainPath = dataFolderPath + "train.json"
-  val rddTrainPath = dataFolderPath + "train.rdd"
+  val csvTrainPath = dataPath + "trainMissing.csv"
+  val sampledCsvTrainPath = dataPath + "trainMissing.sampled"
+  val dfTrainPath = dataPath + "train.parquet"
+  val jsonTrainPath = dataPath + "train.json"
+  val rddTrainPath = dataPath + "train.rdd"
 
   val databricksCsvPackage = "com.databricks.spark.csv"
 

@@ -7,9 +7,9 @@ import org.apache.spark.sql.DataFrame
 
 import scala.collection.{immutable, mutable}
 
-case class CategoricToIndexTransformer(ac: ApplicationContext, newColumnPrefix: String = "ind_") {
+case class CategoricToIndexTransformer(df: DataFrame, fraction: Double, dataPath: String, newColumnPrefix: String = "ind_") {
 
-  val outputFileName: String = s"string-index-output${ac.fraction}"
+  val outputFileName: String = s"string-index-output$fraction"
 
   private def debug(model: StringIndexerModel, columnName: String, writer: PrintWriter) {
     println(s"Processed column $columnName with ${model.labels.length} different values")
@@ -18,14 +18,14 @@ case class CategoricToIndexTransformer(ac: ApplicationContext, newColumnPrefix: 
   }
 
   def transform: (DataFrame, immutable.Map[String, Array[String]]) = {
-    val writer = new PrintWriter(s"${ac.dataFolderPath}/$outputFileName", "UTF-8")
+    val writer = new PrintWriter(s"$dataPath/$outputFileName", "UTF-8")
 
-    var tmpDf = ac.df
+    var tmpDf = df
     val indexedNames: mutable.Map[String, Array[String]] = mutable.Map()
-    for (v <- SchemaInspector(ac.df).getCategoricalVariables) {
+    for (v <- SchemaInspector(df).getCategoricalVariables) {
       val indexedName = newColumnPrefix + v.name
       val indexer = new StringIndexer().setInputCol(v.name).setOutputCol(indexedName)
-      val model = indexer.fit(ac.df)
+      val model = indexer.fit(df)
       debug(model, v.name, writer)
       tmpDf = model.transform(tmpDf)
       indexedNames.put(indexedName, model.labels)
