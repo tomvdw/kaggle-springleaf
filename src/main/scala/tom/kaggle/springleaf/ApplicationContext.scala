@@ -32,7 +32,7 @@ class ApplicationContext(configFilePath: String) {
   val redisPort = config.getInt("redis.port")
   lazy val redis = new RedisClient(redisHost, redisPort)
 
-  val df = {
+  lazy val df = {
     val result = dataImporter.readSample
     result.registerTempTable(ApplicationContext.tableName)
     result

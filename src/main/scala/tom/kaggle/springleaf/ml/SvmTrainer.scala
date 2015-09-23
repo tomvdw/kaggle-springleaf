@@ -13,6 +13,10 @@ case class SvmTrainer(trainingDataset: RDD[LabeledPoint], components: Int, numIt
       .clearThreshold()
   }
 
+  def reduce(dataSet: RDD[LabeledPoint]): RDD[LabeledPoint] = {
+    dataSet.map(p => p.copy(features = pca.transform(p.features)))
+  }
+
   private lazy val pca = {
     println("Fitting PCA model")
     new PCA(components).fit(trainingDataset.map(_.features))
@@ -20,6 +24,6 @@ case class SvmTrainer(trainingDataset: RDD[LabeledPoint], components: Int, numIt
 
   private lazy val reducedFeatures: RDD[LabeledPoint] = {
     println("Reducing dataset")
-    trainingDataset.map(p => p.copy(features = pca.transform(p.features))).cache()
+    reduce(trainingDataset)
   }
 }

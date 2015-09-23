@@ -3,47 +3,44 @@ package tom.kaggle.springleaf.app
 import org.apache.spark.ml.feature.StandardScaler
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
 import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.mllib.linalg.Vector
 import tom.kaggle.springleaf.ApplicationContext
-import tom.kaggle.springleaf.ml.{FeatureVector, GbtReducedFeaturesEvaluator}
+import tom.kaggle.springleaf.ml.{ FeatureVector, GbtReducedFeaturesEvaluator }
+import tom.kaggle.springleaf.ml.SvmTrainer
+import org.apache.spark.ml.feature.PCA
+import org.apache.spark.mllib.classification.SVMWithSGD
+import org.apache.spark.sql.DataFrame
 
 case class TrainModelApp(ac: ApplicationContext) {
 
   def run() {
-    val trainFeatureVectors = ac.sc.objectFile[FeatureVector](ac.trainFeatureVectorPath, 16)
+    val scaledNumericalFeatures = "scaledNumericalFeatures"
+    val pcaFeatures = "pcaFeatures"
+    import ac.sqlContext.implicits._
+
+    // Pre-process with ML library: http://spark.apache.org/docs/latest/ml-features.html
+    val rawFeatureVectorsDF = ac.sc.objectFile[FeatureVector](ac.trainFeatureVectorPath, 16).toDF()
+    val scaledData = scale(rawFeatureVectorsDF, "numericalFeatures", scaledNumericalFeatures)
+    val pcaDF = reduce(scaledData, scaledNumericalFeatures, pcaFeatures, k = 50)
+
+    val trainFeatureVectors = pcaDF
+      .select("label", pcaFeatures).rdd
+      .map(r => LabeledPoint(r.getAs[Double](0), r.getAs[Vector](1)))
+
+    // Split data into sets for training, testing and validating
     val splits = trainFeatureVectors.randomSplit(Array(0.6, 0.2, 0.2))
     val (trainingSet, testSet, validationSet) = (splits(0), splits(1), splits(2))
 
-    import ac.sqlContext.implicits._
-    val trainingSetDF = trainingSet.toDF()
-    val scaler = new StandardScaler()
-      .setInputCol("numericalFeatures")
-      .setOutputCol("scaledNumericalFeatures")
-      .setWithStd(true)
-      .setWithMean(false)
-
-    // Compute summary statistics by fitting the StandardScaler
-    val scalerModel = scaler.fit(trainingSetDF)
-
-    // Normalize each feature to have unit standard deviation.
-    val scaledData = scalerModel.transform(trainingSetDF)
-    trainingSetDF.show(10)
-    scaledData.show(10)
-
-    // TODO: ml pipeline stuff can be inserted here: http://spark.apache.org/docs/latest/ml-features.html
-
-    val trainingLabeledPoints = trainingSet.map(x => LabeledPoint(x.label, x.numericalFeatures))
-    val testLabeledPoints = testSet.map(x => LabeledPoint(x.label, x.numericalFeatures))
-
-    val components = 100
+    // Train model
     val numIterations = 100
-    println(s"\nTraining model with $components components and $numIterations iterations")
-    //    val svmTrainer = SvmTrainer(trainingSet, components, numIterations)
-    //    svmTrainer.reducedFeatures.take(10).foreach(println)
-    val svmTrainer = GbtReducedFeaturesEvaluator(trainingLabeledPoints, components, numIterations)
+    println(s"\nTraining model with $numIterations iterations")
+    val model = SVMWithSGD.train(trainingSet, numIterations)
+    model.clearThreshold()
 
+    // Test model
     println(s"\nCompute raw scores on the test set.")
-    val scoreAndLabels = svmTrainer.reduce(testLabeledPoints).map { point =>
-      val score = svmTrainer.model.predict(point.features)
+    val scoreAndLabels = testSet.map { point =>
+      val score = model.predict(point.features)
       (score, point.label)
     }
 
@@ -51,6 +48,29 @@ case class TrainModelApp(ac: ApplicationContext) {
     val metrics = new BinaryClassificationMetrics(scoreAndLabels)
     println(s"\nArea under ROC = ${metrics.areaUnderROC()}")
     println(s"Evaluation: ${interpretAreaUnderROC(metrics.areaUnderROC())}")
+  }
+
+  private def scale(df: DataFrame, inputCol: String, outputCol: String): DataFrame = {
+    val scaler = new StandardScaler()
+      .setInputCol(inputCol)
+      .setOutputCol(outputCol)
+      .setWithStd(true)
+      .setWithMean(false)
+
+    // Compute summary statistics by fitting the StandardScaler
+    val scalerModel = scaler.fit(df)
+
+    // Normalize each feature to have unit standard deviation.
+    scalerModel.transform(df)
+  }
+
+  private def reduce(df: DataFrame, inputCol: String, outputCol: String, k: Int): DataFrame = {
+    val pca = new PCA()
+      .setInputCol(inputCol)
+      .setOutputCol(outputCol)
+      .setK(k)
+      .fit(df)
+    pca.transform(df)
   }
 
   private def interpretAreaUnderROC(areaUnderROC: Double): String = {
