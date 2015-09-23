@@ -9,7 +9,7 @@ case class IndexedCategoricalVariableCreator(df: DataFrame) {
   lazy val categoricalVariables = SchemaInspector(df).getProcessedCategoricalVariables(df.schema)
   lazy val models: Seq[StringIndexerModel] =
     for (v <- categoricalVariables) yield {
-      val indexer = new StringIndexer().setInputCol(v.name).setOutputCol(s"${ApplicationContext.prefixOfIndexedString}_${v.name}")
+      val indexer = new StringIndexer().setInputCol(v.name).setOutputCol(s"${Names.PrefixOfIndexedString}_${v.name}")
       indexer.fit(df)
     }
 

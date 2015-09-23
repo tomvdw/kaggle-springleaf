@@ -4,13 +4,12 @@ import org.apache.spark.mllib.feature.PCA
 import org.apache.spark.mllib.linalg.{Vector, Vectors}
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.{DoubleType, IntegerType, LongType, StructField}
+import org.apache.spark.sql.{DataFrame, Row}
 
-case class DataPreProcessor(ac: ApplicationContext) {
-  val schemaInspector = SchemaInspector(ac.df)
-  val categoricalTransformer = CategoricToIndexTransformer(ac)
-  val labelIndex = ac.df.schema.fieldIndex("target")
+case class DataPreProcessor(df: DataFrame, categoricalTransformer: CategoricToIndexTransformer) {
+  val schemaInspector = SchemaInspector(df)
+  val labelIndex = df.schema.fieldIndex("target")
 
   def getLabel(row: Row): Double = row.getInt(labelIndex).toDouble
 
@@ -57,7 +56,7 @@ case class DataPreProcessor(ac: ApplicationContext) {
   }
 
   def getNumericalFeatures: RDD[LabeledPoint] = {
-    ac.df.map { row => LabeledPoint(getLabel(row), getNumericalValues(row)) }
+    df.map { row => LabeledPoint(getLabel(row), getNumericalValues(row)) }
   }
 
   def getImputedNumericalFeatures: RDD[LabeledPoint] = {

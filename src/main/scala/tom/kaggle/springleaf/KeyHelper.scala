@@ -2,9 +2,9 @@ package tom.kaggle.springleaf
 
 import org.apache.spark.sql.types.StructField
 
-case class KeyHelper(ac: ApplicationContext) {
+case class KeyHelper(fraction: Double) {
   val separator = ":"
-  val columnPrefix = keyify("column", ac.fraction)
+  val columnPrefix = keyify("column", fraction)
 
   def keyFor(column: StructField): String = keyFor(column.name)
 

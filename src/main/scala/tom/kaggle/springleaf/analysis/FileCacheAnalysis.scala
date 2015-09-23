@@ -3,10 +3,9 @@ package tom.kaggle.springleaf.analysis
 import java.io.{BufferedWriter, FileWriter, PrintWriter}
 
 import org.apache.spark.sql.types.StructField
-import tom.kaggle.springleaf.ApplicationContext
+import tom.kaggle.springleaf.Names
 
-case class FileCacheAnalysis(ac: ApplicationContext, statistics: DataStatistics) extends ICachedAnalysis {
-  private val columnValueCountsPath = s"${ac.dataFolderPath}/column-value-counts${ac.fraction}"
+case class FileCacheAnalysis(columnValueCountsPath: String, statistics: DataStatistics) extends ICachedAnalysis {
   private var writer: Option[PrintWriter] = None
 
   def readColumnValueCounts: Map[String, Map[String, Long]] = {
@@ -42,7 +41,7 @@ case class FileCacheAnalysis(ac: ApplicationContext, statistics: DataStatistics)
 
   private def analyzeColumn(column: StructField, writer: PrintWriter) {
     val valueCounts = statistics.valueCount(column)
-    writer.println("%s:%s".format(column.name, valueCounts.mkString(";")))
+    writer.println(s"${column.name}:${valueCounts.mkString(";")}")
     writer.flush()
   }
 

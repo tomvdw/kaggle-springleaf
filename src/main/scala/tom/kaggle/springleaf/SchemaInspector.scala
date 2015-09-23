@@ -10,11 +10,11 @@ case class SchemaInspector(df: DataFrame) {
 
   def getNumericalVariables = getAllVariables.filter { x => x.dataType != StringType }
 
-  def getProcessedNumericalVariables(schema: StructType): Seq[StructField] = schema.filter { x => x.name.startsWith(ApplicationContext.prefixOfDecimal) }
+  def getProcessedNumericalVariables(schema: StructType): Seq[StructField] = schema.filter { x => x.name.startsWith(Names.PrefixOfDecimal) }
 
   def getProcessedNumericalVariables: Seq[StructField] = getProcessedNumericalVariables(df.schema)
 
-  def getProcessedCategoricalVariables(schema: StructType): Seq[StructField] = schema.filter { x => x.name.startsWith(ApplicationContext.prefixOfIndexedString) }
+  def getProcessedCategoricalVariables(schema: StructType): Seq[StructField] = schema.filter { x => x.name.startsWith(Names.PrefixOfIndexedString) }
 
   def getProcessedCategoricalVariables: Seq[StructField] = getProcessedCategoricalVariables(df.schema)
 

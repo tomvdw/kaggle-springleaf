@@ -7,12 +7,12 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.StructField
 
-import tom.kaggle.springleaf.ApplicationContext
+import tom.kaggle.springleaf.Names
 import tom.kaggle.springleaf.SchemaInspector
 
 case class FeatureVectorCreator(df: DataFrame) {
   private val schemaInspector = SchemaInspector(df)
-  private val labelIndex = df.schema.fieldIndex(ApplicationContext.labelFieldName)
+  private val labelIndex = df.schema.fieldIndex(Names.LabelFieldName)
 
   def getFeatureVectors: RDD[FeatureVector] = df.map(getFeatureVector)
 

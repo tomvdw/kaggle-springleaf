@@ -1,11 +1,11 @@
 package tom.kaggle.springleaf.analysis
 
+import com.redis.RedisClient
 import com.redis.serialization.Parse.Implicits.{parseLong, parseString}
 import org.apache.spark.sql.types.StructField
-import tom.kaggle.springleaf.{ApplicationContext, KeyHelper}
+import tom.kaggle.springleaf.KeyHelper
 
-case class RedisCacheAnalysis(ac: ApplicationContext, statistics: DataStatistics) extends ICachedAnalysis {
-  val keyHelper = KeyHelper(ac)
+class RedisCacheAnalysis(redis: RedisClient, statistics: DataStatistics, keyHelper: KeyHelper) extends ICachedAnalysis {
 
   def readColumnValueCounts: Map[String, Map[String, Long]] = {
     getValueCountsPerKey.map {
@@ -15,35 +15,33 @@ case class RedisCacheAnalysis(ac: ApplicationContext, statistics: DataStatistics
 
   private def getValueCountsPerKey: Map[String, Map[String, Long]] = {
     getCachedVariables.map { key =>
-      ac.redis.hgetall[String, Long](key) match {
+      redis.hgetall[String, Long](key) match {
         case Some(values) => key -> values
-        case None         => throw new RuntimeException("No values found for %s!!!".format(key))
+        case None => throw new RuntimeException(s"No values found for $key!!!")
       }
     }.toMap
   }
 
   private def getCachedVariables: List[String] = {
-    ac.redis.keys[String](keyHelper.keyPattern) match {
-      case Some(keys) => keys.flatMap { x => x }
-      case None       => List()
+    redis.keys[String](keyHelper.keyPattern) match {
+      case Some(keys) => keys.flatten
+      case None => List()
     }
   }
 
   def analyze(variables: Array[StructField]): Map[String, Map[String, Long]] = {
     val cachedColumnValueCounts = readColumnValueCounts
-
     for (variable <- variables if !cachedColumnValueCounts.contains(variable.name)) {
-        analyzeColumn(variable)
+      analyzeColumn(variable)
     }
-
     readColumnValueCounts
   }
 
   private def analyzeColumn(column: StructField) {
     val columnKey = keyHelper.keyFor(column)
-    if (!ac.redis.exists(columnKey)) {
+    if (!redis.exists(columnKey)) {
       statistics.valueCount(column)
-        .foreach(valueCount => ac.redis.hset(columnKey, valueCount._1, valueCount._2))
+        .foreach(valueCount => redis.hset(columnKey, valueCount._1, valueCount._2))
     }
   }
 }
