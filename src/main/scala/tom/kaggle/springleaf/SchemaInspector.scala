@@ -14,7 +14,7 @@ case class SchemaInspector(df: DataFrame) {
 
   def getProcessedNumericalVariables: Seq[StructField] = getProcessedNumericalVariables(df.schema)
 
-  def getProcessedCategoricalVariables(schema: StructType): Seq[StructField] = schema.filter { x => x.name.startsWith(Names.PrefixOfIndexedString) }
+  def getProcessedCategoricalVariables(schema: StructType): Seq[StructField] = schema.filter { x => x.name.startsWith(Names.PrefixOfString) }
 
   def getProcessedCategoricalVariables: Seq[StructField] = getProcessedCategoricalVariables(df.schema)
 

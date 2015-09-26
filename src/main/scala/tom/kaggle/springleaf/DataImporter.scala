@@ -62,7 +62,9 @@ class DataImporter(dataPath: String, fraction: Double, sc: SparkContext, sqlCont
     } catch {
       case e: Throwable =>
         val df = readCsv
-        val sampledDf = df.sample(withReplacement = false, fraction)
+        val sampledDf =
+          if (fraction < 1.0) df.sample(withReplacement = false, fraction)
+          else df
         sampledDf.write
           .format(databricksCsvPackage)
           .option("header", "true")

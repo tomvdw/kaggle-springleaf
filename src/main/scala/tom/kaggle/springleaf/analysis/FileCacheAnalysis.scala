@@ -10,6 +10,7 @@ case class FileCacheAnalysis(columnValueCountsPath: String, statistics: DataStat
 
   def readColumnValueCounts: Map[String, Map[String, Long]] = {
     try {
+//      scala.io.Source.fromFile(columnValueCountsPath).asInstanceOf[Map[String, Map[String, Long]]]
       val lines = scala.io.Source.fromFile(columnValueCountsPath).getLines()
       lines.map { line =>
         val parts = line.split(":", 2)
