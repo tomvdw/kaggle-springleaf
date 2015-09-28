@@ -6,7 +6,7 @@ import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.{DataFrame, SQLContext}
 import scaldi.{Injectable, TypesafeConfigInjector}
 import tom.kaggle.springleaf._
-import tom.kaggle.springleaf.analysis.{ColumnTypeInference, ICachedAnalysis}
+import tom.kaggle.springleaf.analysis.{DataStatistics, ColumnTypeInference, ICachedAnalysis}
 import tom.kaggle.springleaf.ml.FeatureVectorCreator
 
 object AnalyzeDataApp extends App with Injectable {
@@ -18,8 +18,10 @@ object AnalyzeDataApp extends App with Injectable {
   private val df = inject[DataFrame]
   private val trainFeatureVectorPath = inject[String]("data.path.trainFeatureVector")
   private val cachedInferredTypesPath = inject[String]("data.path.cachedInferredTypes")
+  private val statistics = inject[DataStatistics]
 
-  analyzeCategoricalVariables()
+  statistics.tmp()
+//  analyzeCategoricalVariables()
 
   private def analyzeCategoricalVariables() {
     val schemaInspector = SchemaInspector(df)

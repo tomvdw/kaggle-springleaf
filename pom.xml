@@ -70,6 +70,12 @@
             <version>0.5.6</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.scalaz</groupId>
+            <artifactId>scalaz-core_${scala.version}</artifactId>
+            <version>7.1.4</version>
+        </dependency>
+
         <!-- <dependency> <groupId>tom</groupId> <artifactId>spark-utils</artifactId>
             <version>0.0.1-SNAPSHOT</version> </dependency> -->
     </dependencies>
