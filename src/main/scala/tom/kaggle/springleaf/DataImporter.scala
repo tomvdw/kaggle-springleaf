@@ -40,7 +40,7 @@ class DataImporter(dataPath: String, fraction: Double, sc: SparkContext, sqlCont
   def readCsv(filePath: String): DataFrame =
     sqlContext.read.format(databricksCsvPackage)
       .option("header", "true")
-      .option("inferSchema", "true")
+//      .option("inferSchema", "true")
       .load(filePath)
 
   def readRdd = {

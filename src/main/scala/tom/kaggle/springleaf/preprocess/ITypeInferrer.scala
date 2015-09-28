@@ -1,4 +1,4 @@
-package tom.kaggle.springleaf.analysis
+package tom.kaggle.springleaf.preprocess
 
 import org.apache.spark.sql.types.DataType
 

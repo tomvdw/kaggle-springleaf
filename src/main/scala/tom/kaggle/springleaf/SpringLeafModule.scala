@@ -4,6 +4,7 @@ import com.redis.RedisClient
 import org.apache.spark.sql.DataFrame
 import scaldi.Module
 import tom.kaggle.springleaf.analysis._
+import tom.kaggle.springleaf.preprocess.{OnTheFlyTypeInferrer, ITypeInferrer, ColumnTypeInference}
 
 class SpringLeafModule extends Module {
 

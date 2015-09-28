@@ -17,4 +17,5 @@ dependencies {
     compile "org.redis:scala-redis_${scalaVersionMinor}:0.0.21"
     compile "org.scala-lang:scala-library:${scalaVersion}"
     compile "org.scaldi:scaldi_${scalaVersionMinor}:0.5.6"
+    compile "org.scalaz.scalaz-core_${scalaVersionMinor}:7.1.3"
 }

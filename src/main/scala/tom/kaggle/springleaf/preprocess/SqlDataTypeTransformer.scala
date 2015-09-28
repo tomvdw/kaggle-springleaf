@@ -1,6 +1,7 @@
-package tom.kaggle.springleaf
+package tom.kaggle.springleaf.preprocess
 
-import org.apache.spark.sql.types.{BooleanType, DataType, DateType, DoubleType, IntegerType, LongType}
+import org.apache.spark.sql.types._
+import tom.kaggle.springleaf.Names
 
 object SqlDataTypeTransformer {
   def castColumn(column: String, dataType: DataType): List[String] = {

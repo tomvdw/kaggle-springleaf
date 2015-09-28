@@ -5,6 +5,7 @@ import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.types.DataType
 import tom.kaggle.springleaf.SchemaInspector
+import tom.kaggle.springleaf.preprocess.{ITypeInferrer, ColumnTypeInference}
 
 case class RedisTypeInferrer(cachedInferredTypesPath: String,
                              df: DataFrame,
