@@ -6,14 +6,14 @@ import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.{DataFrame, SQLContext}
 import scaldi.{Injectable, TypesafeConfigInjector}
 import tom.kaggle.springleaf._
-import tom.kaggle.springleaf.analysis.{ColumnTypeInference, RedisCacheAnalysis}
+import tom.kaggle.springleaf.analysis.{ColumnTypeInference, ICachedAnalysis}
 import tom.kaggle.springleaf.ml.FeatureVectorCreator
 
 object AnalyzeDataApp extends App with Injectable {
   implicit val injector = TypesafeConfigInjector() :: new SparkModule :: new SpringLeafModule
 
   private val sqlContext = inject[SQLContext]
-  private val cacheAnalysis = inject[RedisCacheAnalysis]
+  private val cacheAnalysis = inject[ICachedAnalysis]
   private val typeInference = inject[ColumnTypeInference]
   private val df = inject[DataFrame]
   private val trainFeatureVectorPath = inject[String]("data.path.trainFeatureVector")

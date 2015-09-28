@@ -3,12 +3,11 @@ package tom.kaggle.springleaf.analysis
 import java.io.{BufferedWriter, FileWriter, PrintWriter}
 
 import org.apache.spark.sql.types.StructField
-import tom.kaggle.springleaf.Names
 
-case class FileCacheAnalysis(columnValueCountsPath: String, statistics: DataStatistics) extends ICachedAnalysis {
+case class OneBigFileCacheAnalysis(columnValueCountsPath: String, statistics: DataStatistics) extends ICachedAnalysis {
   private var writer: Option[PrintWriter] = None
 
-  def readColumnValueCounts: Map[String, Map[String, Long]] = {
+  override def readColumnValueCounts: Map[String, Map[String, Long]] = {
     try {
       val lines = scala.io.Source.fromFile(columnValueCountsPath).getLines()
       lines.map { line =>
@@ -27,7 +26,7 @@ case class FileCacheAnalysis(columnValueCountsPath: String, statistics: DataStat
     }
   }
 
-  def analyze(variables: Array[StructField]): Map[String, Map[String, Long]] = {
+  override def analyze(variables: Array[StructField]): Map[String, Map[String, Long]] = {
     val cachedColumnValueCounts = readColumnValueCounts
     val writer = getColumnValueCountsWriter
     for (variable <- variables) {
