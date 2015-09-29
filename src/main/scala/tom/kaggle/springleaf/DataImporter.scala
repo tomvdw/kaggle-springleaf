@@ -7,6 +7,7 @@ class DataImporter(dataPath: String, fraction: Double, sc: SparkContext, sqlCont
 
   val csvTrainPath = dataPath + "trainMissing.csv"
   val sampledCsvTrainPath = dataPath + "trainMissing.sampled"
+  val sampledParquetTrainPath = dataPath + "trainMissing.sampled"
   val dfTrainPath = dataPath + "train.parquet"
   val jsonTrainPath = dataPath + "train.json"
   val rddTrainPath = dataPath + "train.rdd"
@@ -24,7 +25,7 @@ class DataImporter(dataPath: String, fraction: Double, sc: SparkContext, sqlCont
     }
   }
 
-  def readParquet = {
+  def readParquetFile: DataFrame = {
     try {
       sqlContext.read.parquet(dfTrainPath)
     } catch {
@@ -41,7 +42,7 @@ class DataImporter(dataPath: String, fraction: Double, sc: SparkContext, sqlCont
     sqlContext.read.format(databricksCsvPackage)
       .option("header", "true")
 //      .option("inferSchema", "true")
-      .load(filePath)
+      .load(filePath).repartition(256)
 
   def readRdd = {
     try {
@@ -56,11 +57,14 @@ class DataImporter(dataPath: String, fraction: Double, sc: SparkContext, sqlCont
   }
 
   def readSample: DataFrame = {
-    val path = sampledCsvTrainPath + "." + fraction
+    //val path = sampledCsvTrainPath + "." + fraction
+    val path = sampledParquetTrainPath + "." + fraction
     try {
-      readCsv(path)
+      //readCsv(path)
+      readParquetFile
     } catch {
       case e: Throwable =>
+        println("Could not read parquet")
         val df = readCsv
         val sampledDf = if (fraction < 1.0) df.sample(withReplacement = false, fraction) else df
         sampledDf.write

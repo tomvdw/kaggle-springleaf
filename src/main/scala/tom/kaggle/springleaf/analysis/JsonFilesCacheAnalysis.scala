@@ -29,6 +29,7 @@ case class JsonFilesCacheAnalysis(columnValueCountsPath: String, statistics: Dat
     val cachedColumnValueCounts = readColumnValueCounts
     for (variable <- variables) {
       if (!cachedColumnValueCounts.contains(variable.name)) {
+        println(s"Analyzing value counts of ${variable.name}")
         val valueCounts = statistics.valueCount(variable).toMap
         val prettyJson = pretty(map2jvalue(valueCounts))
         new PrintWriter(s"$columnValueCountsPath/${variable.name}") {

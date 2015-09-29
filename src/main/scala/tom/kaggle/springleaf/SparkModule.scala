@@ -13,9 +13,10 @@ class SparkModule extends Module {
       .setAppName("Kaggle SpringLeaf")
       .setMaster("local[*]")
       .set("spark.executor.memory", "8g")
+      .set("spark.driver.memory", "8g")
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     val context = new SparkContext(conf)
-    context.hadoopConfiguration.setInt("parquet.block.size", OneGigabyte)
+    context.hadoopConfiguration.setInt("parquet.block.size", SixtyFourMegabytes)
     context
   }
 
@@ -23,5 +24,5 @@ class SparkModule extends Module {
 }
 
 object SparkModule {
-  val OneGigabyte = 1024 * 1024 * 1024
+  val SixtyFourMegabytes = 64 * 1024 * 1024
 }
