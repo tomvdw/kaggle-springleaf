@@ -5,9 +5,7 @@ import org.apache.spark.sql.types.{BooleanType, DataType, DateType, DoubleType, 
 object SqlDataTypeTransformer {
   def castColumn(column: String, dataType: DataType): List[String] = {
     dataType match {
-      case IntegerType => extractDecimal(column)
-      case LongType => extractDecimal(column)
-      case DoubleType => extractDecimal(column)
+      case IntegerType | LongType | DoubleType => extractDecimal(column)
       case DateType => extractStandardDateFields(column)
       case BooleanType => extractBoolean(column)
       case default => List(s"$column AS ${Names.PrefixOfString}_$column")

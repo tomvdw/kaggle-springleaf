@@ -16,8 +16,17 @@ case class FeatureVectorCreator(df: DataFrame) {
 
   def getFeatureVectors: RDD[FeatureVector] = df.map(getFeatureVector)
 
-  private def getFeatureVector(row: Row): FeatureVector =
-    FeatureVector(row.getInt(labelIndex).toDouble, getNumericalValues(row), getCategoricalValues(row))
+  private def getFeatureVector(row: Row): FeatureVector = {
+    try {
+      val label = row.getAs[String](labelIndex).toDouble
+      FeatureVector(label, getNumericalValues(row), getCategoricalValues(row))
+    } catch {
+      case e: Throwable => {
+        println(s"Getting value of $labelIndex, but could not make a double out of ${row.get(labelIndex)}")
+        throw e
+      }
+    }
+  }
 
   private def getNumericalValues(row: Row): Vector = {
     val numericColumns = schemaInspector.getProcessedNumericalVariables(row.schema)
@@ -34,7 +43,7 @@ case class FeatureVectorCreator(df: DataFrame) {
       (column, index) <- columns.zipWithIndex
       value <- row.get(index) match {
         case value: Number => Some(value.doubleValue())
-        case _             => None
+        case _ => None
       }
     } yield (index, value)
     Vectors.sparse(row.size, sparseValues)

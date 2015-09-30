@@ -20,7 +20,6 @@ case class JsonFilesCacheAnalysis(columnValueCountsPath: String, statistics: Dat
       }).toMap
     } catch {
       case e: Throwable =>
-
         Map()
     }
   }
@@ -35,7 +34,7 @@ case class JsonFilesCacheAnalysis(columnValueCountsPath: String, statistics: Dat
         new PrintWriter(s"$columnValueCountsPath/${variable.name}") {
           write(prettyJson); close
         }
-      } else println("already analyzed " + variable.name)
+      } //else println("already analyzed " + variable.name)
     }
     readColumnValueCounts
   }

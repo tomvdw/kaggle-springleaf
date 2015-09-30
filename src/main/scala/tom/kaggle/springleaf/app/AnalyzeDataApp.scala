@@ -2,7 +2,8 @@ package tom.kaggle.springleaf.app
 
 import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
 
-import org.apache.spark.sql.types.DataType
+import org.apache.commons.io.FileUtils
+import org.apache.spark.sql.types.{LongType, DoubleType, IntegerType, DataType}
 import org.apache.spark.sql.{DataFrame, SQLContext}
 import scaldi.{Injectable, TypesafeConfigInjector}
 import tom.kaggle.springleaf._
@@ -25,6 +26,7 @@ object AnalyzeDataApp extends App with Injectable {
   private def analyzeCategoricalVariables() {
     val schemaInspector = SchemaInspector(df)
 
+    println("Inferring types")
     val inferredTypes: Map[String, DataType] = {
       readInferredTypes().getOrElse {
         val categoricalVariables = schemaInspector.getCategoricalVariables
@@ -35,33 +37,56 @@ object AnalyzeDataApp extends App with Injectable {
           case (column, dataType) => println(s"Inferred type ${dataType.typeName} for column $column")
         }
         saveInferredTypes(inferredTypes)
+
         inferredTypes
       }
     }
 
-    val selectExpressionsCategorical = inferredTypes.flatMap(pt => SqlDataTypeTransformer.castColumn(pt._1, pt._2))
-    val selectExpressionsNumerical = schemaInspector.getNumericalColumns.map(x => s"$x AS ${Names.PrefixOfDecimal}_$x")
-    val selectExpressionsForAllNumerical = selectExpressionsNumerical ++ selectExpressionsCategorical
-    println(s"${selectExpressionsCategorical.size} variables read as categorical, converted to numeric")
-    println(s"${selectExpressionsNumerical.size} variables read as pure numerical")
-    println(s"In total ${selectExpressionsForAllNumerical.size} of variables")
-    val trainFeatureVectors = getFeatureVector(Names.TableName, selectExpressionsForAllNumerical)
 
-    //trainFeatureVectors.take(5).foreach(println)
+    val categoricalVariables = schemaInspector.getCategoricalVariables
+    val columnValues = cacheAnalysis.analyze(categoricalVariables)
+    val totalNumberOfRecords = df.count()
+    println(s"$totalNumberOfRecords number of records")
+    val variableTypeInference = new VariableTypeInference(totalNumberOfRecords)
+    variableTypeInference.getVariableTypes(inferredTypes.filter{case (v,t) => t == LongType || t == IntegerType || t == DoubleType}, columnValues)//.foreach { case (s, dt) => println(s"variable $s has data type $dt")}
+//    val var_0018: String = "VAR_0018"
+//    println(s"Determining variable type of $var_0018")
+//    variableTypeInference.getVariableType(var_0018, inferredTypes.get(var_0018).get, columnValues.get(var_0018).get)
+
+    if (false) {
+      println("Inferred types loaded")
+
+      val selectExpressionsCategorical = inferredTypes.flatMap(pt => SqlDataTypeTransformer.castColumn(pt._1, pt._2))
+      val selectExpressionsNumerical = schemaInspector.getNumericalColumns.map(x => s"$x AS ${Names.PrefixOfDecimal}_$x")
+      val selectExpressionsForAllNumerical = selectExpressionsNumerical ++ selectExpressionsCategorical
+      println(s"${selectExpressionsCategorical.size} variables read as categorical, converted to numeric")
+      println(s"${selectExpressionsNumerical.size} variables read as pure numerical")
+      println(s"In total ${selectExpressionsForAllNumerical.size} of variables")
+
+      println("Constructing feature vectors")
+      val trainFeatureVectors = getFeatureVector(Names.TableName, selectExpressionsForAllNumerical)
+      trainFeatureVectors.take(5).foreach(println)
+    }
   }
 
   private def getFeatureVector(tableName: String, selectExpressions: Iterable[String]) = {
+    println("Executing query to get all data in the right format")
     val query = s"SELECT ${selectExpressions.mkString(",\n")}, ${Names.LabelFieldName} FROM $tableName"
     val df = sqlContext.sql(query)
     df.show(1) // hm, otherwise the schema seems to be null => NullPointerException
 
+    println("Creating indexed categorical variables")
     val dfWithIndexedCategoricalVariables = IndexedCategoricalVariableCreator(df).transformedDf
     dfWithIndexedCategoricalVariables.show(1)
+
+    println("Creating feature vectors")
     val features = FeatureVectorCreator(dfWithIndexedCategoricalVariables).getFeatureVectors
     try {
+      val file = new File(trainFeatureVectorPath)
+      if (file.exists()) FileUtils.deleteDirectory(file)
       features.saveAsObjectFile(trainFeatureVectorPath)
     } catch {
-      case e: Throwable => println("Could not store feature vectors. Probably they already exist.")
+      case e: Throwable => println("Could not store feature vectors. Probably they already exist. Exception: " + e.getMessage)
     }
     features
   }
