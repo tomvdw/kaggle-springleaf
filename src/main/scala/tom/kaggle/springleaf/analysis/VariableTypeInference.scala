@@ -1,4 +1,4 @@
-package tom.kaggle.springleaf.app
+package tom.kaggle.springleaf.analysis
 
 import org.apache.spark.sql.types._
 
@@ -43,8 +43,9 @@ class VariableTypeInference(totalNumberOfRecords: Long) {
       return StringType
     }
 
-    val avgValue = average(valueCounts)
-    val maxValue = max(valueCounts)
+    val columnValuesAnalysis = ColumnValueAnalyzer(valueCounts, totalNumberOfRecords)
+    val avgValue = columnValuesAnalysis.average
+    val maxValue = columnValuesAnalysis.max
     val hasOutlier: Boolean = maxValue / avgValue > 10 // has outlier iff the max is more than 10 times the average value
 
     // if there is an outlier, and there are not a lot of distinct values, then just make it categorical...
@@ -54,33 +55,6 @@ class VariableTypeInference(totalNumberOfRecords: Long) {
     }
 
     DoubleType
-  }
-
-  def averages(valuesPerColumn: Map[String, Map[String, Long]]): Map[String, Double] = {
-    valuesPerColumn.map { case (variable, valueCounts) => variable -> average(valueCounts) }
-  }
-
-  def max(valueCounts: Map[String, Long]): Double = {
-    getDoubles(valueCounts).map { case (value, count) => value }.max
-  }
-
-  def average(valueCounts: Map[String, Long]): Double = {
-    val total = getDoubles(valueCounts).map { case (value, count) => value * count }.sum
-    val numberOfValues = valueCounts.map { case (value, count) => count }.sum
-    total / numberOfValues
-  }
-
-  def std(valueCounts: Map[String, Long]): Double = {
-    val avg = average(valueCounts)
-    val sumOfValuesMinusMeanSquared = getDoubles(valueCounts)
-      .map { case (value, count) => count * scala.math.pow(value - avg, 2) }.sum
-    scala.math.sqrt(sumOfValuesMinusMeanSquared / totalNumberOfRecords)
-  }
-
-  def getDoubles(valueCounts: Map[String, Long]): Map[Double, Long] = {
-    valueCounts
-      .filter { case (value, count) => !value.isEmpty }
-      .map { case (value, count) => (value.toDouble, count) }
   }
 
 }

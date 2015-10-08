@@ -1,9 +1,10 @@
-package tom.kaggle.springleaf
+package tom.kaggle.springleaf.preprocess
 
 import java.io.PrintWriter
 
 import org.apache.spark.ml.feature.{StringIndexer, StringIndexerModel}
 import org.apache.spark.sql.DataFrame
+import tom.kaggle.springleaf.SchemaInspector
 
 import scala.collection.{immutable, mutable}
 

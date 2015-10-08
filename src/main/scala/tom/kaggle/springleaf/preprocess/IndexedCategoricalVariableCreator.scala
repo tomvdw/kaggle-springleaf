@@ -1,8 +1,9 @@
-package tom.kaggle.springleaf
+package tom.kaggle.springleaf.preprocess
 
+import org.apache.spark.ml.feature.{StringIndexer, StringIndexerModel}
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.ml.feature.StringIndexer
-import org.apache.spark.ml.feature.StringIndexerModel
+import tom.kaggle.springleaf.{Names, SchemaInspector}
+
 import scala.annotation.tailrec
 
 case class IndexedCategoricalVariableCreator(df: DataFrame) {

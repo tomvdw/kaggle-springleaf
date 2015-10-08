@@ -3,12 +3,13 @@ package tom.kaggle.springleaf.app
 import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
 
 import org.apache.commons.io.FileUtils
-import org.apache.spark.sql.types.{LongType, DoubleType, IntegerType, DataType}
+import org.apache.spark.sql.types.{DataType, DoubleType, IntegerType, LongType}
 import org.apache.spark.sql.{DataFrame, SQLContext}
 import scaldi.{Injectable, TypesafeConfigInjector}
 import tom.kaggle.springleaf._
-import tom.kaggle.springleaf.analysis.{ColumnTypeInference, DataStatistics, ICachedAnalysis}
+import tom.kaggle.springleaf.analysis._
 import tom.kaggle.springleaf.ml.FeatureVectorCreator
+import tom.kaggle.springleaf.preprocess.{IndexedCategoricalVariableCreator, SqlDataTypeTransformer}
 
 object AnalyzeDataApp extends App with Injectable {
   implicit val injector = TypesafeConfigInjector() :: new SparkModule :: new SpringLeafModule
@@ -26,13 +27,20 @@ object AnalyzeDataApp extends App with Injectable {
   private def analyzeCategoricalVariables() {
     val schemaInspector = SchemaInspector(df)
 
+    val categoricalVariables = schemaInspector.getCategoricalVariables
+
+    println("Reading column values")
+    val columnValues = cacheAnalysis.analyze(categoricalVariables)
+
+    println("Counting number of records")
+    val totalNumberOfRecords = df.count()
+    println(s"$totalNumberOfRecords number of records")
+
     println("Inferring types")
     val inferredTypes: Map[String, DataType] = {
       readInferredTypes().getOrElse {
-        val categoricalVariables = schemaInspector.getCategoricalVariables
         println(s"${categoricalVariables.length} number of categoricalVariables")
-        val columnValues = cacheAnalysis.analyze(categoricalVariables)
-        val inferredTypes = typeInference.inferTypes(columnValues)
+        val inferredTypes = typeInference.inferTypes(columnValues, totalNumberOfRecords)
         inferredTypes.foreach {
           case (column, dataType) => println(s"Inferred type ${dataType.typeName} for column $column")
         }
@@ -43,28 +51,34 @@ object AnalyzeDataApp extends App with Injectable {
     }
 
 
-    val categoricalVariables = schemaInspector.getCategoricalVariables
-    val columnValues = cacheAnalysis.analyze(categoricalVariables)
-    val totalNumberOfRecords = df.count()
-    println(s"$totalNumberOfRecords number of records")
-    val variableTypeInference = new VariableTypeInference(totalNumberOfRecords)
-    variableTypeInference.getVariableTypes(inferredTypes.filter{case (v,t) => t == LongType || t == IntegerType || t == DoubleType}, columnValues)//.foreach { case (s, dt) => println(s"variable $s has data type $dt")}
-//    val var_0018: String = "VAR_0018"
-//    println(s"Determining variable type of $var_0018")
-//    variableTypeInference.getVariableType(var_0018, inferredTypes.get(var_0018).get, columnValues.get(var_0018).get)
 
-    if (false) {
+//    val variableTypeInference = new VariableTypeInference(totalNumberOfRecords)
+//    variableTypeInference.getVariableTypes(inferredTypes.filter { case (v, t) => t == LongType || t == IntegerType || t == DoubleType }, columnValues) //.foreach { case (s, dt) => println(s"variable $s has data type $dt")}
+    //    val var_0018: String = "VAR_0018"
+    //    println(s"Determining variable type of $var_0018")
+    //    variableTypeInference.getVariableType(var_0018, inferredTypes.get(var_0018).get, columnValues.get(var_0018).get)
+
+    if (true) {
       println("Inferred types loaded")
 
-      val selectExpressionsCategorical = inferredTypes.flatMap(pt => SqlDataTypeTransformer.castColumn(pt._1, pt._2))
+      val selectExpressions = inferredTypes.flatMap(pt => {
+        val valueCounts = columnValues.getOrElse(pt._1, Map())
+        val analysis = {
+          pt._2 match {
+            case IntegerType | LongType | DoubleType => ColumnValueAnalyzer(valueCounts, totalNumberOfRecords)
+            case _ => ColumnValueAnalyzer(Map(), totalNumberOfRecords)
+          }
+        }
+        SqlDataTypeTransformer.castColumn(pt._1, pt._2, analysis)
+      })
       val selectExpressionsNumerical = schemaInspector.getNumericalColumns.map(x => s"$x AS ${Names.PrefixOfDecimal}_$x")
-      val selectExpressionsForAllNumerical = selectExpressionsNumerical ++ selectExpressionsCategorical
-      println(s"${selectExpressionsCategorical.size} variables read as categorical, converted to numeric")
+      val selectExpressionsForAllNumerical = selectExpressionsNumerical ++ selectExpressions
+      println(s"${selectExpressions.size} variables read as categorical, converted to numeric")
       println(s"${selectExpressionsNumerical.size} variables read as pure numerical")
       println(s"In total ${selectExpressionsForAllNumerical.size} of variables")
 
       println("Constructing feature vectors")
-      val trainFeatureVectors = getFeatureVector(Names.TableName, selectExpressionsForAllNumerical)
+      val trainFeatureVectors = getFeatureVector(Names.TableName, selectExpressions)
       trainFeatureVectors.take(5).foreach(println)
     }
   }

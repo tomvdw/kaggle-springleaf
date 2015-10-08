@@ -42,6 +42,7 @@ object TrainModelApp extends App with Injectable {
     // Train model
     val numIterations = 100
     println(s"\nTraining model with $numIterations iterations")
+    trainingSet.cache()
     val model = SVMWithSGD.train(trainingSet, numIterations)
     model.clearThreshold()
 

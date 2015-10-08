@@ -3,6 +3,7 @@ package tom.kaggle.springleaf
 import com.redis.RedisClient
 import scaldi.Module
 import tom.kaggle.springleaf.analysis._
+import tom.kaggle.springleaf.preprocess.{DataImporter, CategoricToIndexTransformer, DataPreProcessor}
 
 class SpringLeafModule extends Module {
 

@@ -1,4 +1,4 @@
-package tom.kaggle.springleaf
+package tom.kaggle.springleaf.preprocess
 
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, SQLContext}

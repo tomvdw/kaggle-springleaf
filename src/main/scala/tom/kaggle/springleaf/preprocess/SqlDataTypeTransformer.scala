@@ -1,11 +1,13 @@
-package tom.kaggle.springleaf
+package tom.kaggle.springleaf.preprocess
 
-import org.apache.spark.sql.types.{BooleanType, DataType, DateType, DoubleType, IntegerType, LongType}
+import org.apache.spark.sql.types._
+import tom.kaggle.springleaf.Names
+import tom.kaggle.springleaf.analysis.ColumnValueAnalyzer
 
 object SqlDataTypeTransformer {
-  def castColumn(column: String, dataType: DataType): List[String] = {
+  def castColumn(column: String, dataType: DataType, analysis: ColumnValueAnalyzer): List[String] = {
     dataType match {
-      case IntegerType | LongType | DoubleType => extractDecimal(column)
+      case IntegerType | LongType | DoubleType => extractDecimal(column, analysis)
       case DateType => extractStandardDateFields(column)
       case BooleanType => extractBoolean(column)
       case default => List(s"$column AS ${Names.PrefixOfString}_$column")
@@ -25,8 +27,14 @@ object SqlDataTypeTransformer {
 
   def string(expression: String, resultName: String): String = s"$expression as $resultName"
 
-  def extractDecimal(column: String): List[String] = {
-    List(s"CASE WHEN $column IS NULL OR $column = '' THEN NULL ELSE cast($column AS DECIMAL) END as ${Names.PrefixOfDecimal}_${column}")
+  def extractDecimal(column: String, analysis: ColumnValueAnalyzer): List[String] = {
+    List(
+      s"""CASE
+         |WHEN $column IS NULL OR $column = ''
+         |THEN ${"%10.10f".format(analysis.average).replace(",", ".")}
+         |ELSE CAST($column AS DECIMAL)
+         |END
+         |AS ${Names.PrefixOfDecimal}_$column""".stripMargin)
   }
 
   def extractBoolean(column: String): List[String] = {

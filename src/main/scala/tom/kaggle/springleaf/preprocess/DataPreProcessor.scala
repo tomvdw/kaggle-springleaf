@@ -1,11 +1,12 @@
-package tom.kaggle.springleaf
+package tom.kaggle.springleaf.preprocess
 
 import org.apache.spark.mllib.feature.PCA
 import org.apache.spark.mllib.linalg.{Vector, Vectors}
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.types.{DoubleType, IntegerType, LongType, StructField}
+import org.apache.spark.sql.types.{DoubleType, LongType, IntegerType, StructField}
 import org.apache.spark.sql.{DataFrame, Row}
+import tom.kaggle.springleaf.SchemaInspector
 
 case class DataPreProcessor(df: DataFrame, categoricalTransformer: CategoricToIndexTransformer) {
   val schemaInspector = SchemaInspector(df)
