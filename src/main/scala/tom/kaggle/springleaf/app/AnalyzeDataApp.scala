@@ -3,13 +3,17 @@ package tom.kaggle.springleaf.app
 import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
 
 import org.apache.commons.io.FileUtils
-import org.apache.spark.sql.types.{DataType, DoubleType, IntegerType, LongType}
-import org.apache.spark.sql.{DataFrame, SQLContext}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.{DataFrame, Row, RowFactory, SQLContext}
 import scaldi.{Injectable, TypesafeConfigInjector}
 import tom.kaggle.springleaf._
 import tom.kaggle.springleaf.analysis._
-import tom.kaggle.springleaf.ml.FeatureVectorCreator
+import tom.kaggle.springleaf.ml.{FeatureVector, FeatureVectorCreator}
 import tom.kaggle.springleaf.preprocess.{IndexedCategoricalVariableCreator, SqlDataTypeTransformer}
+
+import scala.collection.immutable.IndexedSeq
+import scala.util.Random
 
 object AnalyzeDataApp extends App with Injectable {
   implicit val injector = TypesafeConfigInjector() :: new SparkModule :: new SpringLeafModule
@@ -20,7 +24,8 @@ object AnalyzeDataApp extends App with Injectable {
   private val df = inject[DataFrame]
   private val trainFeatureVectorPath = inject[String]("data.path.trainFeatureVector")
   private val cachedInferredTypesPath = inject[String]("data.path.cachedInferredTypes")
-  private val statistics = inject[DataStatistics]
+  private val numberOfLabelsPerVariablePath = inject[String]("data.path.numberOfLabelsPerVariable")
+  private val labelsPerVariablePath = inject[String]("data.path.labelsPerVariable")
 
   analyzeCategoricalVariables()
 
@@ -30,13 +35,47 @@ object AnalyzeDataApp extends App with Injectable {
     val categoricalVariables = schemaInspector.getCategoricalVariables
 
     println("Reading column values")
-    val columnValues = cacheAnalysis.analyze(categoricalVariables)
+    val columnValues: Map[String, Map[String, Long]] = cacheAnalysis.analyze(categoricalVariables)
 
     println("Counting number of records")
     val totalNumberOfRecords = df.count()
     println(s"$totalNumberOfRecords number of records")
 
     println("Inferring types")
+    val inferredTypes: Map[String, DataType] = inferTypes(categoricalVariables, columnValues, totalNumberOfRecords)
+    println("Inferred types loaded")
+
+
+    if (true) {
+      println("Constructing select expressions")
+      val selectExpressions: Iterable[String] = createSelectExpressions(totalNumberOfRecords, inferredTypes, columnValues)
+
+      println("Constructing feature vectors")
+      val trainFeatureVectors = getFeatureVector(Names.TableName, selectExpressions)
+      trainFeatureVectors.take(5).foreach(println)
+    }
+  }
+
+  private def createSelectExpressions(totalNumberOfRecords: Long, inferredTypes: Map[String, DataType], columnValues: Map[String, Map[String, Long]]): Iterable[String] = {
+    val selectExpressions = inferredTypes.flatMap(pt => {
+/*
+      val analysis = {
+        pt._2 match {
+          case IntegerType | LongType | DoubleType | FloatType =>
+            val valueCounts = columnValues.getOrElse(pt._1, Map())
+            ColumnValueAnalyzer(valueCounts, totalNumberOfRecords)
+          case _ => ColumnValueAnalyzer(Map(), totalNumberOfRecords)
+        }
+      }
+*/
+      val valueCounts = columnValues.getOrElse(pt._1, Map())
+      val analysis = ColumnValueAnalyzer(valueCounts, totalNumberOfRecords)
+      SqlDataTypeTransformer.castColumn(pt._1, pt._2, analysis)
+    })
+    selectExpressions
+  }
+
+  private def inferTypes(categoricalVariables: Array[StructField], columnValues: Map[String, Map[String, Long]], totalNumberOfRecords: Long): Map[String, DataType] = {
     val inferredTypes: Map[String, DataType] = {
       readInferredTypes().getOrElse {
         println(s"${categoricalVariables.length} number of categoricalVariables")
@@ -49,52 +88,45 @@ object AnalyzeDataApp extends App with Injectable {
         inferredTypes
       }
     }
-
-
-
-//    val variableTypeInference = new VariableTypeInference(totalNumberOfRecords)
-//    variableTypeInference.getVariableTypes(inferredTypes.filter { case (v, t) => t == LongType || t == IntegerType || t == DoubleType }, columnValues) //.foreach { case (s, dt) => println(s"variable $s has data type $dt")}
-    //    val var_0018: String = "VAR_0018"
-    //    println(s"Determining variable type of $var_0018")
-    //    variableTypeInference.getVariableType(var_0018, inferredTypes.get(var_0018).get, columnValues.get(var_0018).get)
-
-    if (true) {
-      println("Inferred types loaded")
-
-      val selectExpressions = inferredTypes.flatMap(pt => {
-        val valueCounts = columnValues.getOrElse(pt._1, Map())
-        val analysis = {
-          pt._2 match {
-            case IntegerType | LongType | DoubleType => ColumnValueAnalyzer(valueCounts, totalNumberOfRecords)
-            case _ => ColumnValueAnalyzer(Map(), totalNumberOfRecords)
-          }
-        }
-        SqlDataTypeTransformer.castColumn(pt._1, pt._2, analysis)
-      })
-      val selectExpressionsNumerical = schemaInspector.getNumericalColumns.map(x => s"$x AS ${Names.PrefixOfDecimal}_$x")
-      val selectExpressionsForAllNumerical = selectExpressionsNumerical ++ selectExpressions
-      println(s"${selectExpressions.size} variables read as categorical, converted to numeric")
-      println(s"${selectExpressionsNumerical.size} variables read as pure numerical")
-      println(s"In total ${selectExpressionsForAllNumerical.size} of variables")
-
-      println("Constructing feature vectors")
-      val trainFeatureVectors = getFeatureVector(Names.TableName, selectExpressions)
-      trainFeatureVectors.take(5).foreach(println)
-    }
+    inferredTypes
   }
 
-  private def getFeatureVector(tableName: String, selectExpressions: Iterable[String]) = {
+  private def normalDistributionImputation(df: DataFrame, analyses: Map[String, ColumnValueAnalyzer]): RDD[Row] = {
+    val r = new Random()
+    df.map(row => {
+      if (row.anyNull) {
+        val rowValues: IndexedSeq[Any] =
+          for (i <- 0 to row.length) yield {
+            val fieldName = row.schema.fieldNames(i)
+            if (row.isNullAt(i) && analyses.contains(fieldName)) {
+              val analysis = analyses.get(fieldName).get
+              r.nextGaussian() * analysis.std + analysis.average
+            }
+            else row.get(i)
+          }
+        RowFactory.create(rowValues)
+      }
+      else row
+    })
+  }
+
+  private def getFeatureVector(tableName: String, selectExpressions: Iterable[String]): RDD[FeatureVector] = {
     println("Executing query to get all data in the right format")
     val query = s"SELECT ${selectExpressions.mkString(",\n")}, ${Names.LabelFieldName} FROM $tableName"
-    val df = sqlContext.sql(query)
+    val df: DataFrame = sqlContext.sql(query)
     df.show(1) // hm, otherwise the schema seems to be null => NullPointerException
+    println(s"Output of query has ${df.schema.fieldNames.length} fields")
 
     println("Creating indexed categorical variables")
-    val dfWithIndexedCategoricalVariables = IndexedCategoricalVariableCreator(df).transformedDf
+    val indexedCategoricalVariableCreator = IndexedCategoricalVariableCreator(df)
+    val dfWithIndexedCategoricalVariables = indexedCategoricalVariableCreator.transformedDf
     dfWithIndexedCategoricalVariables.show(1)
+    println("Saving label meta data to files")
+    IndexedCategoricalVariableCreator.saveArray(indexedCategoricalVariableCreator.models, numberOfLabelsPerVariablePath)
+    IndexedCategoricalVariableCreator.saveMap(indexedCategoricalVariableCreator.models, labelsPerVariablePath)
 
     println("Creating feature vectors")
-    val features = FeatureVectorCreator(dfWithIndexedCategoricalVariables).getFeatureVectors
+    val features: RDD[FeatureVector] = FeatureVectorCreator(dfWithIndexedCategoricalVariables).getFeatureVectors
     try {
       val file = new File(trainFeatureVectorPath)
       if (file.exists()) FileUtils.deleteDirectory(file)

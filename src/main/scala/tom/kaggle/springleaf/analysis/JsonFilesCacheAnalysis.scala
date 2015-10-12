@@ -6,7 +6,7 @@ import org.apache.spark.sql.types.StructField
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
 
-case class JsonFilesCacheAnalysis(columnValueCountsPath: String, statistics: DataStatistics) extends ICachedAnalysis {
+case class JsonFilesCacheAnalysis(columnValueCountsPath: String, statistics: IDataStatistics) extends ICachedAnalysis {
   implicit val formats = org.json4s.DefaultFormats
 
   override def readColumnValueCounts: Map[String, Map[String, Long]] = {
@@ -19,8 +19,7 @@ case class JsonFilesCacheAnalysis(columnValueCountsPath: String, statistics: Dat
         variableName -> parse(f).extract[Map[String, Long]]
       }).toMap
     } catch {
-      case e: Throwable =>
-        Map()
+      case e: Throwable => Map()
     }
   }
 

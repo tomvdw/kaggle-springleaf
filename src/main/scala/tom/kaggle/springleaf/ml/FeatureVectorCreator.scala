@@ -1,14 +1,10 @@
 package tom.kaggle.springleaf.ml
 
-import org.apache.spark.mllib.linalg.Vector
-import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.linalg.{Vector, Vectors}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.StructField
-
-import tom.kaggle.springleaf.Names
-import tom.kaggle.springleaf.SchemaInspector
+import org.apache.spark.sql.{DataFrame, Row}
+import tom.kaggle.springleaf.{Names, SchemaInspector}
 
 case class FeatureVectorCreator(df: DataFrame) {
   private val schemaInspector = SchemaInspector(df)
@@ -17,15 +13,10 @@ case class FeatureVectorCreator(df: DataFrame) {
   def getFeatureVectors: RDD[FeatureVector] = df.map(getFeatureVector)
 
   private def getFeatureVector(row: Row): FeatureVector = {
-    try {
-      val label = row.getAs[String](labelIndex).toDouble
-      FeatureVector(label, getNumericalValues(row), getCategoricalValues(row))
-    } catch {
-      case e: Throwable => {
-        println(s"Getting value of $labelIndex, but could not make a double out of ${row.get(labelIndex)}")
-        throw e
-      }
-    }
+    val label: Double = getLabel(row)
+    val categoricalValues: Vector = getCategoricalValues(row)
+    val numericalValues: Vector = getNumericalValues(row)
+    FeatureVector(label, numericalValues, categoricalValues)
   }
 
   private def getNumericalValues(row: Row): Vector = {
@@ -39,13 +30,25 @@ case class FeatureVectorCreator(df: DataFrame) {
   }
 
   private def getVector(row: Row, columns: Seq[StructField]): Vector = {
-    val sparseValues = for {
-      (column, index) <- columns.zipWithIndex
-      value <- row.get(index) match {
-        case value: Number => Some(value.doubleValue())
-        case _ => None
-      }
-    } yield (index, value)
-    Vectors.sparse(row.size, sparseValues)
+    val sparseValues: Seq[(Int, Double)] =
+      for {
+        (column, index) <- columns.zipWithIndex
+        value <- row.getAs[Any](column.name) match {
+          case n: Number => Some(n.doubleValue())
+          case _ => None
+        }
+      } yield (index, value)
+    Vectors.sparse(columns.size, sparseValues)
   }
+
+  private def getLabel(row: Row): Double = {
+    try {
+      row.getAs[String](labelIndex).toDouble
+    } catch {
+      case e: Throwable =>
+        println(s"Getting value of $labelIndex, but could not make a double out of ${row.get(labelIndex)}")
+        throw e
+    }
+  }
+
 }

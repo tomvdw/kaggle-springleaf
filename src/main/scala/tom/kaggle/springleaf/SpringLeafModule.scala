@@ -3,6 +3,7 @@ package tom.kaggle.springleaf
 import com.redis.RedisClient
 import scaldi.Module
 import tom.kaggle.springleaf.analysis._
+import tom.kaggle.springleaf.ml.CategoricalFeatureInfoCreator
 import tom.kaggle.springleaf.preprocess.{DataImporter, CategoricToIndexTransformer, DataPreProcessor}
 
 class SpringLeafModule extends Module {
@@ -23,4 +24,6 @@ class SpringLeafModule extends Module {
   }
   binding to injected[DataPreProcessor]
   binding to injected[CategoricToIndexTransformer]('dataPath -> inject[String]("data.path.base"), 'fraction -> inject[Double]("data.fraction"))
+
+  binding to injected[CategoricalFeatureInfoCreator]('numberOfLabelsPerVariablePath -> inject[String]("data.path.numberOfLabelsPerVariable"))
 }
