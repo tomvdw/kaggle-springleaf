@@ -33,8 +33,21 @@ case class ColumnValueAnalyzer(valueCounts: Map[String, Long], totalNumberOfReco
       .map { case (value, count) => (value.toDouble, count) }
   }
 
-  lazy val doubleValues: Iterable[Double] = {
+  lazy val doubleValues: Iterable[Double] =
     doubleValueCounts.map { case (value, count) => value }
+
+  lazy val sortedDoubleValueCounts: Seq[(Double, Long)] =
+    doubleValueCounts.toSeq.sortBy(_._1)
+
+  def percentile(tile: Int): Double = {
+    val totalOccurrences = sortedDoubleValueCounts.map(_._2).sum
+    val desired = totalOccurrences * (tile / 100d)
+    var current: Long = 0
+    for ((value, occurrences) <- sortedDoubleValueCounts) {
+      current = current + occurrences
+      if (current >= desired) return value
+    }
+    sortedDoubleValueCounts.last._1
   }
 
 }

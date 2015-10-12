@@ -9,8 +9,8 @@ class SqlDataTypeTransformerSpec extends FlatSpec with Matchers {
 
   "Extract a boolean" should "have a bool prefix" in {
     val extractBoolean: List[String] = SqlDataTypeTransformer.extractBoolean(columnName)
-    extractBoolean.length should be (1)
-    extractBoolean.head.contains(s"AS ${Names.PrefixOfString}_${columnName}") should be (true)
+    extractBoolean.length should be(1)
+    extractBoolean.head.contains(s"AS ${Names.PrefixOfString}_${columnName}") should be(true)
   }
 
   "Extract a categorical value" should "group infrequent values" in {
@@ -22,7 +22,7 @@ class SqlDataTypeTransformerSpec extends FlatSpec with Matchers {
     val analysis = ColumnValueAnalyzer(valueCounts, 105)
     val extractedValue = SqlDataTypeTransformer.extractCategoricalValue(columnName, analysis)
 
-    extractedValue.size should be (1)
+    extractedValue.size should be(1)
     extractedValue.head.contains(s"IN ('$infrequent1','$infrequent2')")
   }
 }
