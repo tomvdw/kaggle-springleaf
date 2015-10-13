@@ -20,6 +20,7 @@ object TrainModelApp extends App with Injectable {
   private val sc = inject[SparkContext]
   private val sqlContext = inject[SQLContext]
   private val categoricalFeatureInfoCreator = inject[CategoricalFeatureInfoCreator]
+  private val dataPath = inject[String]("data.path.base")
   private val trainFeatureVectorPath = inject[String]("data.path.trainFeatureVector")
 
   val numClasses: Int = 2
@@ -32,7 +33,7 @@ object TrainModelApp extends App with Injectable {
 
   def run() {
     val (trainFeatureVectors: RDD[LabeledPoint], categoricalInfo: Map[Int, Int]) =
-      createFeatureVectorsForTraining(numberOfComponents = 5)
+      createFeatureVectorsForTraining(numberOfComponents = 0)
 
     // Split data into sets for training, testing and validating
     val splits = trainFeatureVectors.randomSplit(Array(0.6, 0.2, 0.2))
@@ -40,8 +41,8 @@ object TrainModelApp extends App with Injectable {
 
     //    lazy val svmModel = trainSVMWithSGD(trainingSet)
 
-    lazy val randomForest = trainRandomForest(trainingSet, categoricalInfo)
-    testModel(randomForest, testSet)
+//    lazy val randomForest = trainRandomForest(trainingSet, categoricalInfo)
+//    testModel(randomForest, testSet)
 
     lazy val gbt = trainGBT(trainingSet, categoricalInfo)
     testModel(gbt, testSet)
@@ -54,28 +55,31 @@ object TrainModelApp extends App with Injectable {
     println("Loading raw feature vector data from disk")
     val rawFeatureVectorsRDD: RDD[FeatureVector] = sc.objectFile[FeatureVector](trainFeatureVectorPath, 16)
     val rawFeatureVectorsDF: DataFrame = rawFeatureVectorsRDD.toDF()
-
-    println("Scaling numerical data")
-    val scaledData = scale(rawFeatureVectorsDF, numericalFeaturesName, scaledNumericalFeatures)
-
-    println(s"Performing PCA with $numberOfComponents components")
-    val pcaDF = reduce(scaledData, scaledNumericalFeatures, pcaFeatures, numberOfComponents)
-
-    println("Creating categorical features info")
     val firstFeatureVector = rawFeatureVectorsRDD.first()
     val numberOfNumericalFeatures = firstFeatureVector.numericalFeatures.size
     val numberOfCategoricalFeatures = firstFeatureVector.categoricalFeatures.size
+
+    val (pcaDF, featuresColumn, numOfFeatures: Int) = if (numberOfComponents > 0) {
+      println("Scaling numerical data")
+      val scaledData = scale(rawFeatureVectorsDF, numericalFeaturesName, scaledNumericalFeatures)
+
+      println(s"Performing PCA with $numberOfComponents components")
+      val reducedDataFrame: DataFrame = reduce(scaledData, scaledNumericalFeatures, pcaFeatures, numberOfComponents)
+      (reducedDataFrame, pcaFeatures, numberOfComponents)
+    } else (rawFeatureVectorsDF, numericalFeaturesName, numberOfNumericalFeatures)
+
+    println("Creating categorical features info")
     val categoricalInfo: Map[Int, Int] = categoricalFeatureInfoCreator.createFrom(
-      numberOfComponents = numberOfComponents,
+      numberOfComponents = numOfFeatures,
       numberOfCategoricalFeatures = numberOfCategoricalFeatures)
 
     println("Constructing final feature vectors")
     val trainFeatureVectors: RDD[LabeledPoint] = pcaDF
-      .select("label", pcaFeatures, categoricalFeaturesName)
+      .select("label", featuresColumn, categoricalFeaturesName)
       .map(r => {
         val numericFeatures: Array[Double] = r.getAs[Vector](1).toArray
         val categoricalFeatures: Array[Double] = r.getAs[Vector](2).toArray
-        if ((numberOfComponents + numberOfCategoricalFeatures) != (numericFeatures.length + categoricalFeatures.length)) {
+        if ((numOfFeatures + numberOfCategoricalFeatures) != (numericFeatures.length + categoricalFeatures.length)) {
           throw new RuntimeException(s"Numeric: $numberOfNumericalFeatures / ${numericFeatures.length} and Categorical: $numberOfCategoricalFeatures / ${categoricalFeatures.length}")
         }
         val features: Vector = Vectors.dense(numericFeatures ++ categoricalFeatures)
@@ -88,7 +92,7 @@ object TrainModelApp extends App with Injectable {
   private def trainGBT(trainingSet: RDD[LabeledPoint],
                        categoricalFeaturesInfo: Map[Int, Int],
                        numIterations: Int = 100,
-                       maxDepth: Int = 5): Vector => Double = {
+                       maxDepth: Int = 8): Vector => Double = {
     val maxNumberOfCategories = categoricalFeaturesInfo.map(_._2).max
 
     val boostingStrategy: BoostingStrategy = BoostingStrategy.defaultParams("Classification")
@@ -99,15 +103,16 @@ object TrainModelApp extends App with Injectable {
     boostingStrategy.treeStrategy.maxBins = maxNumberOfCategories
 
     val model = GradientBoostedTrees.train(trainingSet, boostingStrategy)
+    model.save(sc, s"$dataPath/gbt.model")
     model.predict
   }
 
   private def trainRandomForest(trainingSet: RDD[LabeledPoint],
                                 categoricalFeaturesInfo: Map[Int, Int],
-                                numTrees: Int = 500,
+                                numTrees: Int = 250,
                                 featureSubsetStrategy: String = "auto",
                                 impurity: String = "gini",
-                                maxDepth: Int = 4,
+                                maxDepth: Int = 8,
                                 maxBins: Int = 32,
                                 numIterations: Int = 500): Vector => Double = {
 

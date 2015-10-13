@@ -2,6 +2,7 @@ package tom.kaggle.springleaf.analysis
 
 case class ColumnValueAnalyzer(valueCounts: Map[String, Long], totalNumberOfRecords: Long) {
 
+  lazy val sortedByCount: Seq[(String, Long)] = valueCounts.toSeq.sortBy(_._2)
   lazy val nulls: Long = valueCounts.count { case (value, count) => value.isEmpty }
   lazy val percentageNull: Double = nulls / totalNumberOfRecords
 
@@ -38,6 +39,9 @@ case class ColumnValueAnalyzer(valueCounts: Map[String, Long], totalNumberOfReco
 
   lazy val sortedDoubleValueCounts: Seq[(Double, Long)] =
     doubleValueCounts.toSeq.sortBy(_._1)
+
+  lazy val percentile5 = percentile(5)
+  lazy val percentile95 = percentile(95)
 
   def percentile(tile: Int): Double = {
     val totalOccurrences = sortedDoubleValueCounts.map(_._2).sum

@@ -17,17 +17,32 @@ object SqlDataTypeTransformer {
   }
 
   def extractCategoricalValue(column: String, analysis: ColumnValueAnalyzer, minimum: Int = 10): List[String] = {
-    val infrequentValues = analysis.valueCounts.filter(_._2 < minimum).keys
-    if (infrequentValues.size <= 1) List(s"$column AS ${Names.PrefixOfString}_$column")
+    val distinctValues: Int = analysis.valueCounts.size
+    if (distinctValues <= 32) List(s"$column AS ${Names.PrefixOfString}_$column")
     else {
+      val valuesToMerge = analysis.sortedByCount.take(distinctValues - 31).map(_._1)
       List(
         s"""CASE
-            |WHEN $column IN (\n  \"${infrequentValues.mkString("\"\n, \"")}\"\n)
+            |WHEN $column IN (\n  \"${valuesToMerge.mkString("\"\n, \"")}\"\n)
             |THEN 'infrequent-value'
             |ELSE $column
             |END AS ${Names.PrefixOfString}_$column
          """.stripMargin)
     }
+
+    /*
+        val infrequentValues = analysis.valueCounts.filter(_._2 < minimum).keys
+        if (infrequentValues.size <= 1) List(s"$column AS ${Names.PrefixOfString}_$column")
+        else {
+          List(
+            s"""CASE
+                |WHEN $column IN (\n  \"${infrequentValues.mkString("\"\n, \"")}\"\n)
+                |THEN 'infrequent-value'
+                |ELSE $column
+                |END AS ${Names.PrefixOfString}_$column
+             """.stripMargin)
+        }
+    */
   }
 
   def extractDateField(column: String, index: Int): String =
@@ -48,16 +63,19 @@ object SqlDataTypeTransformer {
   }
 
   def extractDecimal(column: String, analysis: ColumnValueAnalyzer): List[String] = {
-    val averageValueString = formatDecimal(analysis.average)
+//    val averageValueString = formatDecimal(analysis.average)
     val standard = List(
-      decimalOrAverageIfMissing(column, averageValueString),
-      isMissingValue(column) //,
+      //      decimalOrAverageIfMissing(column, averageValueString),
+      decimalOrNullIfMissing(column)
+//      isMissingValue(column) //,
       //biggerOrSmallerThanAverage(column, averageValueString)
     )
 
     val (biggest, secondBiggest) = analysis.twoBiggest
-    if (biggest > 1000000 && biggest > 10 * secondBiggest)
+    if (biggest > 1000000 && biggest > 10 * secondBiggest) {
+      println(s"Column $column seems to have an outlier, replacing largest value with second largest")
       standard ++ List(replaceValueWith(column, biggest.toString, secondBiggest.toString))
+    }
     else standard
   }
 
@@ -65,7 +83,7 @@ object SqlDataTypeTransformer {
 
   private def biggerOrSmallerThanAverage(column: String, averageValueString: String): String = {
     s"""CASE
-        |WHEN $column IS NULL OR $column = '' THEN 'missing'
+        |WHEN ${isColumnNull(column)} THEN 'missing'
         |WHEN $column <= ${averageValueString} THEN '<=m'
         |ELSE '>m'
         |END
@@ -74,7 +92,7 @@ object SqlDataTypeTransformer {
 
   private def isMissingValue(column: String): String = {
     s"""CASE
-        |WHEN $column IS NULL OR $column = '' THEN 1
+        |WHEN ${isColumnNull(column)} THEN 1
         |ELSE 0
         |END
         |AS ${Names.PrefixOfDecimal}_${column}_MISSING""".stripMargin
@@ -82,8 +100,17 @@ object SqlDataTypeTransformer {
 
   private def decimalOrAverageIfMissing(column: String, averageValueString: String): String = {
     s"""CASE
-        |WHEN $column IS NULL OR $column = ''
+        |WHEN ${isColumnNull(column)}
         |THEN ${averageValueString}
+        |ELSE CAST($column AS DECIMAL)
+        |END
+        |AS ${Names.PrefixOfDecimal}_$column""".stripMargin
+  }
+
+  private def decimalOrNullIfMissing(column: String): String = {
+    s"""CASE
+        |WHEN ${isColumnNull(column)}
+        |THEN NULL
         |ELSE CAST($column AS DECIMAL)
         |END
         |AS ${Names.PrefixOfDecimal}_$column""".stripMargin
@@ -98,6 +125,15 @@ object SqlDataTypeTransformer {
         |AS ${Names.PrefixOfDecimal}_$column""".stripMargin
   }
 
+  private def nullifyValue(column: String, value: String): String = {
+    s"""CASE
+        |WHEN $column = '$value'
+        |THEN NULL
+        |ELSE CAST($column AS DECIMAL)
+        |END
+        |AS ${Names.PrefixOfDecimal}_$column""".stripMargin
+  }
+
   def extractBoolean(column: String): List[String] = {
     List(
       s"""CASE
@@ -106,4 +142,6 @@ object SqlDataTypeTransformer {
           |ELSE ''
           |END AS ${Names.PrefixOfString}_$column""".stripMargin)
   }
+
+  private def isColumnNull(column: String): String = s"$column IS NULL OR $column = ''"
 }

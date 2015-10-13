@@ -14,6 +14,7 @@ class SparkModule extends Module {
       .setMaster("local[*]")
       .set("spark.executor.memory", "8g")
       .set("spark.driver.memory", "8g")
+      .set("spark.driver.maxResultSize", "1g")
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     val context = new SparkContext(conf)
     context.hadoopConfiguration.setInt("parquet.block.size", SixtyFourMegabytes)
